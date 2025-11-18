@@ -1,0 +1,79 @@
+
+import React from 'react';
+import { GameState } from '../types';
+import { GAME_WIDTH, GAME_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, BALL_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT } from '../constants';
+
+interface GameBoardProps {
+  gameState: GameState;
+}
+
+const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
+  const { paddles, ball, blocks } = gameState;
+
+  return (
+    <div 
+      className="relative bg-black border-4 border-gray-600 shadow-2xl overflow-hidden"
+      style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
+    >
+      {/* Center Line */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-full">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <div key={i} className="w-full h-10 bg-gray-700" style={{ marginBottom: '10px' }}></div>
+        ))}
+      </div>
+
+      {/* Left Paddle */}
+      <div
+        className="absolute bg-blue-400 shadow-lg"
+        style={{
+          left: '20px',
+          top: `${paddles.left.y}px`,
+          width: `${PADDLE_WIDTH}px`,
+          height: `${PADDLE_HEIGHT}px`,
+          boxShadow: '0 0 10px #60a5fa',
+        }}
+      />
+
+      {/* Right Paddle */}
+      <div
+        className="absolute bg-red-400 shadow-lg"
+        style={{
+          right: '20px',
+          top: `${paddles.right.y}px`,
+          width: `${PADDLE_WIDTH}px`,
+          height: `${PADDLE_HEIGHT}px`,
+          boxShadow: '0 0 10px #f87171',
+        }}
+      />
+
+      {/* Blocks */}
+      {blocks.map((block, index) => (
+        <div
+          key={index}
+          className="absolute bg-purple-500 border-2 border-purple-300"
+          style={{
+            left: `${block.position.x}px`,
+            top: `${block.position.y}px`,
+            width: `${BLOCK_WIDTH}px`,
+            height: `${BLOCK_HEIGHT}px`,
+            boxShadow: '0 0 15px #a855f7',
+          }}
+        />
+      ))}
+
+      {/* Ball */}
+      <div
+        className="absolute bg-white rounded-full"
+        style={{
+          left: `${ball.position.x - BALL_SIZE / 2}px`,
+          top: `${ball.position.y - BALL_SIZE / 2}px`,
+          width: `${BALL_SIZE}px`,
+          height: `${BALL_SIZE}px`,
+          boxShadow: '0 0 20px #ffffff',
+        }}
+      />
+    </div>
+  );
+};
+
+export default GameBoard;

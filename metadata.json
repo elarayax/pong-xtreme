@@ -1,0 +1,5 @@
+{
+  "name": "pong xtreme",
+  "description": "A two-player Pong-style game built with React and Tailwind CSS. Every few points, a new block appears in the middle, adding a challenging twist to the classic game.",
+  "requestFramePermissions": []
+}
