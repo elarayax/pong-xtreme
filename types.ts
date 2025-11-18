@@ -24,8 +24,10 @@ export interface GameState {
   score: { player1: number; player2: number };
   isGameActive: boolean;
   winner: string | null;
+  isMasacre: boolean; // New flag for 5-0 wins
   ballSpeed: number;
+  rallyPaddleHits: number;
   countdown: number;
-  nextBallDirection: number; // 1 for right, -1 for left
+  nextBallDirection: number;
   lastScorer: string | null;
 }

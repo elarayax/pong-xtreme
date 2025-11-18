@@ -10,19 +10,21 @@ import {
   BALL_SIZE,
   INITIAL_BALL_SPEED,
   MAX_BOUNCE_ANGLE,
-  POINTS_TO_ADD_BLOCK,
+  POINTS_TO_START_BLOCKS,
   BLOCK_WIDTH,
   BLOCK_HEIGHT,
-  WINNING_SCORE,
+  BASE_WINNING_SCORE,
+  WIN_BY_MARGIN,
   BALL_SPEED_INCREMENT,
+  RALLY_HITS_THRESHOLD,
+  RALLY_HITS_INTERVAL,
 } from '../constants';
 
 // Sound Utility
 const audioCtx = typeof window !== 'undefined' ? new (window.AudioContext || (window as any).webkitAudioContext)() : null;
 
-const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score') => {
+const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win') => {
   if (!audioCtx) return;
-  // Resume context if suspended (browser autoplay policy)
   if (audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {});
   }
@@ -71,6 +73,15 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score') => {
       oscillator.start(now);
       oscillator.stop(now + 0.3);
       break;
+    case 'win':
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(400, now);
+      oscillator.frequency.linearRampToValueAtTime(1000, now + 0.5);
+      gainNode.gain.setValueAtTime(0.3, now);
+      gainNode.gain.linearRampToValueAtTime(0, now + 1.5);
+      oscillator.start(now);
+      oscillator.stop(now + 1.5);
+      break;
   }
 };
 
@@ -87,7 +98,9 @@ const createInitialState = (): GameState => ({
   score: { player1: 0, player2: 0 },
   isGameActive: false,
   winner: null,
+  isMasacre: false,
   ballSpeed: INITIAL_BALL_SPEED,
+  rallyPaddleHits: 0,
   countdown: 0,
   nextBallDirection: 0,
   lastScorer: null,
@@ -161,6 +174,8 @@ export const useGameLogic = () => {
       if (prev.countdown > 0) return prev;
 
       let { paddles, ball, blocks, score } = JSON.parse(JSON.stringify(prev));
+      let newBallSpeed = prev.ballSpeed;
+      let rallyPaddleHits = prev.rallyPaddleHits;
 
       // Move paddles
       if (keysPressed.current['w']) {
@@ -186,6 +201,20 @@ export const useGameLogic = () => {
         playGameSound('wall');
       }
 
+      // Helper for Speed Up Logic
+      const checkSpeedUp = (currentHits: number) => {
+          // 1. Check if we passed threshold (5)
+          // 2. Check if hits above threshold are multiple of interval (2)
+          if (currentHits === RALLY_HITS_THRESHOLD) {
+              return true;
+          }
+          if (currentHits > RALLY_HITS_THRESHOLD && 
+             (currentHits - RALLY_HITS_THRESHOLD) % RALLY_HITS_INTERVAL === 0) {
+              return true;
+          }
+          return false;
+      };
+
       // Paddle collision
       const isCollidingWithLeftPaddle = 
         ball.position.x - BALL_SIZE / 2 <= 20 + PADDLE_WIDTH &&
@@ -198,18 +227,31 @@ export const useGameLogic = () => {
         ball.position.y < paddles.right.y + PADDLE_HEIGHT;
       
       if (isCollidingWithLeftPaddle && ball.velocity.x < 0) {
+        rallyPaddleHits++;
+        if (checkSpeedUp(rallyPaddleHits)) {
+             newBallSpeed += BALL_SPEED_INCREMENT;
+        }
+
         const relativeIntersectY = (paddles.left.y + PADDLE_HEIGHT / 2) - ball.position.y;
         const normalizedIntersectY = relativeIntersectY / (PADDLE_HEIGHT / 2);
         const bounceAngle = normalizedIntersectY * MAX_BOUNCE_ANGLE;
-        ball.velocity.x = prev.ballSpeed * Math.cos(bounceAngle);
-        ball.velocity.y = prev.ballSpeed * -Math.sin(bounceAngle);
+        
+        ball.velocity.x = newBallSpeed * Math.cos(bounceAngle);
+        ball.velocity.y = newBallSpeed * -Math.sin(bounceAngle);
         playGameSound('paddle');
+
       } else if (isCollidingWithRightPaddle && ball.velocity.x > 0) {
+        rallyPaddleHits++;
+        if (checkSpeedUp(rallyPaddleHits)) {
+             newBallSpeed += BALL_SPEED_INCREMENT;
+        }
+
         const relativeIntersectY = (paddles.right.y + PADDLE_HEIGHT / 2) - ball.position.y;
         const normalizedIntersectY = relativeIntersectY / (PADDLE_HEIGHT / 2);
         const bounceAngle = normalizedIntersectY * MAX_BOUNCE_ANGLE;
-        ball.velocity.x = -prev.ballSpeed * Math.cos(bounceAngle);
-        ball.velocity.y = prev.ballSpeed * -Math.sin(bounceAngle);
+        
+        ball.velocity.x = -newBallSpeed * Math.cos(bounceAngle);
+        ball.velocity.y = newBallSpeed * -Math.sin(bounceAngle);
         playGameSound('paddle');
       }
       
@@ -225,24 +267,20 @@ export const useGameLogic = () => {
           const overlapY = combinedHalfHeights - Math.abs(dy);
 
           if (overlapX < overlapY) {
-            // Horizontal collision
             ball.velocity.x *= -1;
-            // Move ball out of collision
             ball.position.x += (dx > 0 ? overlapX : -overlapX);
           } else {
-            // Vertical collision
             ball.velocity.y *= -1;
-            // Move ball out of collision
             ball.position.y += (dy > 0 ? overlapY : -overlapY);
           }
           playGameSound('block');
-          break; // only handle one collision per frame
+          break; 
         }
       }
 
       // Scoring
       let newWinner = prev.winner;
-      let newBallSpeed = prev.ballSpeed;
+      let isMasacre = false;
       let newCountdown = prev.countdown;
       let newDirection = prev.nextBallDirection;
       let lastScorer = prev.lastScorer;
@@ -251,12 +289,11 @@ export const useGameLogic = () => {
         score.player2++;
         playGameSound('score');
         lastScorer = 'Player 2';
-        newBallSpeed += BALL_SPEED_INCREMENT;
-        // Reset logic
+        newBallSpeed += BALL_SPEED_INCREMENT; 
+        rallyPaddleHits = 0; 
         ball = resetBallPosition(1);
         newCountdown = 3;
-        newDirection = 1; // Towards Player 2
-        // Reset paddles
+        newDirection = 1;
         paddles.left.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
         paddles.right.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
       } else if (ball.position.x > GAME_WIDTH) {
@@ -264,36 +301,34 @@ export const useGameLogic = () => {
         playGameSound('score');
         lastScorer = 'Player 1';
         newBallSpeed += BALL_SPEED_INCREMENT;
-        // Reset logic
+        rallyPaddleHits = 0;
         ball = resetBallPosition(-1);
         newCountdown = 3;
-        newDirection = -1; // Towards Player 1
-        // Reset paddles
+        newDirection = -1;
         paddles.left.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
         paddles.right.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
       }
 
-      // Block Spawning
+      // Block Spawning Logic
       const totalScore = score.player1 + score.player2;
-      // Check if score changed (someone scored) and it's a multiple for blocks
       const someoneScored = (ball.velocity.x === 0 && newCountdown === 3); 
       
-      // We only want to spawn blocks if a point was just scored
-      if (someoneScored && totalScore > 0 && totalScore % POINTS_TO_ADD_BLOCK === 0) {
-          // Cap max blocks to prevent total chaos filling the screen
-          if (blocks.length < totalScore / POINTS_TO_ADD_BLOCK + 2) {
+      // Spawn blocks every point after score reaches threshold
+      if (someoneScored && totalScore >= POINTS_TO_START_BLOCKS) {
+          // Cap max blocks
+          if (blocks.length < totalScore + 2) {
             const canSpawnMultiple = blocks.length >= 2;
             let numToSpawn = 1;
 
             if (canSpawnMultiple) {
                 const r1 = Math.random();
-                if (r1 < 0.8) { // 80% chance for at least 2
+                if (r1 < 0.8) { 
                     numToSpawn = 2;
                     const r2 = Math.random();
-                    if (r2 < 0.4) { // 40% chance for at least 3
+                    if (r2 < 0.4) { 
                         numToSpawn = 3;
                         const r3 = Math.random();
-                        if (r3 < 0.1) { // 10% chance for 4
+                        if (r3 < 0.1) { 
                             numToSpawn = 4;
                         }
                     }
@@ -312,14 +347,20 @@ export const useGameLogic = () => {
           }
       }
 
-      // Check for winner
+      // Check for winner with Deuce Logic
       let isGameActive = prev.isGameActive;
-      if (score.player1 >= WINNING_SCORE) {
-        newWinner = 'Player 1';
-        isGameActive = false;
-      } else if (score.player2 >= WINNING_SCORE) {
-        newWinner = 'Player 2';
-        isGameActive = false;
+      const scoreDiff = Math.abs(score.player1 - score.player2);
+      
+      if ((score.player1 >= BASE_WINNING_SCORE || score.player2 >= BASE_WINNING_SCORE) && scoreDiff >= WIN_BY_MARGIN) {
+          if (score.player1 > score.player2) {
+              newWinner = 'Player 1';
+              if (score.player2 === 0) isMasacre = true;
+          } else {
+              newWinner = 'Player 2';
+              if (score.player1 === 0) isMasacre = true;
+          }
+          isGameActive = false;
+          playGameSound('win');
       }
 
       return { 
@@ -329,8 +370,10 @@ export const useGameLogic = () => {
           blocks, 
           score, 
           winner: newWinner, 
+          isMasacre,
           isGameActive, 
           ballSpeed: newBallSpeed,
+          rallyPaddleHits,
           countdown: newCountdown,
           nextBallDirection: newDirection,
           lastScorer
