@@ -18,6 +18,7 @@ import {
   BALL_SPEED_INCREMENT,
   RALLY_HITS_THRESHOLD,
   RALLY_HITS_INTERVAL,
+  MAX_PROGRESSION_SCORE,
 } from '../constants';
 
 // Sound Utility
@@ -142,7 +143,7 @@ export const useGameLogic = () => {
           if (newCount === 0) {
              newBall.velocity = {
                 x: prev.nextBallDirection * prev.ballSpeed,
-                y: (Math.random() - 0.5) * prev.ballSpeed
+                y: 0 // Launch straight
              };
              lastScorer = null; // Clear score animation
           }
@@ -214,6 +215,9 @@ export const useGameLogic = () => {
           }
           return false;
       };
+      
+      // Calculate total score from current state (safe as we haven't mutated score yet this frame)
+      const currentTotalScore = score.player1 + score.player2;
 
       // Paddle collision
       const isCollidingWithLeftPaddle = 
@@ -228,7 +232,7 @@ export const useGameLogic = () => {
       
       if (isCollidingWithLeftPaddle && ball.velocity.x < 0) {
         rallyPaddleHits++;
-        if (checkSpeedUp(rallyPaddleHits)) {
+        if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
              newBallSpeed += BALL_SPEED_INCREMENT;
         }
 
@@ -242,7 +246,7 @@ export const useGameLogic = () => {
 
       } else if (isCollidingWithRightPaddle && ball.velocity.x > 0) {
         rallyPaddleHits++;
-        if (checkSpeedUp(rallyPaddleHits)) {
+        if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
              newBallSpeed += BALL_SPEED_INCREMENT;
         }
 
@@ -289,7 +293,9 @@ export const useGameLogic = () => {
         score.player2++;
         playGameSound('score');
         lastScorer = 'Player 2';
-        newBallSpeed += BALL_SPEED_INCREMENT; 
+        if ((score.player1 + score.player2) < MAX_PROGRESSION_SCORE) {
+           newBallSpeed += BALL_SPEED_INCREMENT; 
+        }
         rallyPaddleHits = 0; 
         ball = resetBallPosition(1);
         newCountdown = 3;
@@ -300,7 +306,9 @@ export const useGameLogic = () => {
         score.player1++;
         playGameSound('score');
         lastScorer = 'Player 1';
-        newBallSpeed += BALL_SPEED_INCREMENT;
+        if ((score.player1 + score.player2) < MAX_PROGRESSION_SCORE) {
+            newBallSpeed += BALL_SPEED_INCREMENT;
+        }
         rallyPaddleHits = 0;
         ball = resetBallPosition(-1);
         newCountdown = 3;
@@ -313,8 +321,8 @@ export const useGameLogic = () => {
       const totalScore = score.player1 + score.player2;
       const someoneScored = (ball.velocity.x === 0 && newCountdown === 3); 
       
-      // Spawn blocks every point after score reaches threshold
-      if (someoneScored && totalScore >= POINTS_TO_START_BLOCKS) {
+      // Spawn blocks every point after score reaches threshold AND below max progression
+      if (someoneScored && totalScore >= POINTS_TO_START_BLOCKS && totalScore < MAX_PROGRESSION_SCORE) {
           // Cap max blocks
           if (blocks.length < totalScore + 2) {
             const canSpawnMultiple = blocks.length >= 2;
@@ -336,13 +344,27 @@ export const useGameLogic = () => {
             }
 
             for (let i = 0; i < numToSpawn; i++) {
-              const newBlock: Block = {
-                  position: {
-                      x: GAME_WIDTH / 2 - BLOCK_WIDTH / 2,
-                      y: Math.random() * (GAME_HEIGHT - BLOCK_HEIGHT),
-                  }
-              };
-              blocks.push(newBlock);
+              let attempt = 0;
+              let placed = false;
+              
+              while (attempt < 10 && !placed) {
+                const newY = Math.random() * (GAME_HEIGHT - BLOCK_HEIGHT);
+                // Check overlap with existing blocks
+                // Since all blocks are at the same X, we only check Y distance.
+                const isOverlapping = blocks.some(b => Math.abs(b.position.y - newY) < BLOCK_HEIGHT + 5); // 5px buffer
+                
+                if (!isOverlapping) {
+                    const newBlock: Block = {
+                        position: {
+                            x: GAME_WIDTH / 2 - BLOCK_WIDTH / 2,
+                            y: newY,
+                        }
+                    };
+                    blocks.push(newBlock);
+                    placed = true;
+                }
+                attempt++;
+              }
             }
           }
       }

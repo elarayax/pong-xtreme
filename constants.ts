@@ -22,3 +22,5 @@ export const POINTS_TO_START_BLOCKS = 2; // Blocks start appearing when total sc
 
 export const BASE_WINNING_SCORE = 5;
 export const WIN_BY_MARGIN = 2;
+
+export const MAX_PROGRESSION_SCORE = 7; // Stop increasing difficulty after 7 total points
