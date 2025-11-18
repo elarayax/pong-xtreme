@@ -25,4 +25,7 @@ export interface GameState {
   isGameActive: boolean;
   winner: string | null;
   ballSpeed: number;
+  countdown: number;
+  nextBallDirection: number; // 1 for right, -1 for left
+  lastScorer: string | null;
 }

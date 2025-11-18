@@ -8,7 +8,7 @@ interface GameBoardProps {
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { paddles, ball, blocks } = gameState;
+  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer } = gameState;
 
   return (
     <div 
@@ -72,6 +72,40 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
           boxShadow: '0 0 20px #ffffff',
         }}
       />
+
+      {/* Scored Point Overlay */}
+      {lastScorer && !winner && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none">
+              <h2 className="text-6xl font-black text-yellow-400 animate-bounce drop-shadow-xl uppercase tracking-widest">
+                  POINT!
+              </h2>
+              <p className="text-2xl text-white font-bold mt-2 animate-pulse">
+                  {lastScorer} scored
+              </p>
+          </div>
+      )}
+
+      {/* Countdown Overlay */}
+      {isGameActive && !winner && countdown > 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+              <div className="text-8xl font-bold text-white animate-pulse drop-shadow-lg mb-4">
+                  {countdown}
+              </div>
+              <div className="text-yellow-400 animate-bounce">
+                  {nextBallDirection === 1 ? (
+                      // Right Arrow
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-24 h-24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                      </svg>
+                  ) : (
+                      // Left Arrow
+                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-24 h-24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                      </svg>
+                  )}
+              </div>
+          </div>
+      )}
     </div>
   );
 };
