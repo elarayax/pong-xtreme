@@ -85,26 +85,34 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win', extr
   }
 
   // Text To Speech for Winner (Fighting Game Style)
+  // LOUDER VERSION: Using a "Chorus" effect by layering two voices
   if (type === 'win' && extraData && typeof window !== 'undefined' && 'speechSynthesis' in window) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
     const text = `${extraData} Wins`;
-    const utterance = new SpeechSynthesisUtterance(text);
     
-    // Fighting game announcer settings
-    utterance.pitch = 0.6; // Deep voice
-    utterance.rate = 0.9;  // Slightly slow and dramatic
-    utterance.volume = 1.0;
-
     // Try to select an English voice if available
     const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(v => v.lang.startsWith('en'));
-    if (englishVoice) {
-        utterance.voice = englishVoice;
-    }
+    const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
 
-    window.speechSynthesis.speak(utterance);
+    // Voice 1: Main Deep Voice
+    const u1 = new SpeechSynthesisUtterance(text);
+    u1.pitch = 0.6; 
+    u1.rate = 0.8;
+    u1.volume = 1.0; // Max volume
+    if (englishVoice) u1.voice = englishVoice;
+
+    // Voice 2: Slightly Higher Pitch (Creates "Stadium" effect and perceived loudness)
+    const u2 = new SpeechSynthesisUtterance(text);
+    u2.pitch = 0.7; 
+    u2.rate = 0.8; 
+    u2.volume = 1.0; // Max volume
+    if (englishVoice) u2.voice = englishVoice;
+
+    // Play simultaneous(ish)
+    window.speechSynthesis.speak(u1);
+    window.speechSynthesis.speak(u2);
   }
 };
 

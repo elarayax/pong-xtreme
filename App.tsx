@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScoreBoard from './components/ScoreBoard';
 import GameBoard from './components/GameBoard';
 import { useGameLogic } from './hooks/useGameLogic';
@@ -119,12 +119,14 @@ const LeaderboardService = {
         });
 
         if (!response.ok) {
-            throw new Error(`Cloud save failed: ${response.status} ${response.statusText}`);
+            // Throw explicit error for UI to catch
+            throw new Error(`Status: ${response.status} ${response.statusText}`);
         }
 
       } catch (error) {
         console.error("Cloud save error:", error);
         this.saveLocal(updatedList);
+        throw error; // Re-throw to notify UI
       }
     } else {
         this.saveLocal(updatedList);
@@ -160,6 +162,7 @@ const App: React.FC = () => {
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   
   // Input State for Pre-game
   const [player1Name, setPlayer1Name] = useState('PLAYER 1');
@@ -167,30 +170,31 @@ const App: React.FC = () => {
   
   // Scaling State
   const [gameScale, setGameScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Scale Calculation Logic
+  // Improved Scale Calculation Logic using ResizeObserver
   useEffect(() => {
-    const handleResize = () => {
-        const availableWidth = window.innerWidth - 40; // 20px padding each side
-        // Reserve space for Header (~80px), Scoreboard (~100px), Footer (~30px) and margins
-        // Approx 220px needed vertically outside game
-        const verticalOverhead = 220; 
-        const availableHeight = window.innerHeight - verticalOverhead;
+    if (!containerRef.current) return;
 
-        const scaleX = availableWidth / GAME_WIDTH;
-        const scaleY = availableHeight / GAME_HEIGHT;
+    const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+            const { width, height } = entry.contentRect;
+            
+            // Padding safety
+            const availableWidth = width - 20;
+            const availableHeight = height - 20;
 
-        // Use the smallest scale to fit both dimensions, max cap at 1.2 for large screens
-        const newScale = Math.min(scaleX, scaleY, 1.2);
-        
-        // Ensure it doesn't get too small to be unplayable, though CSS transform handles it fine
-        setGameScale(Math.max(newScale, 0.3));
-    };
+            const scaleX = availableWidth / GAME_WIDTH;
+            const scaleY = availableHeight / GAME_HEIGHT;
 
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Init
+            // Use the smallest scale to fit, max 1.5
+            const newScale = Math.min(scaleX, scaleY, 1.5);
+            setGameScale(Math.max(newScale, 0.2)); // Min scale to prevent disappearance
+        }
+    });
 
-    return () => window.removeEventListener('resize', handleResize);
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
   }, []);
 
   // Load leaderboard
@@ -227,6 +231,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (gameState.isGameActive) {
       setScoreSubmitted(false);
+      setSaveError(null);
     }
   }, [gameState.isGameActive]);
 
@@ -258,6 +263,7 @@ const App: React.FC = () => {
     if (isSubmitting || !gameState.winner) return;
 
     setIsSubmitting(true);
+    setSaveError(null);
     const points = calculateScore();
     
     const newEntry: LeaderboardEntry = {
@@ -268,12 +274,18 @@ const App: React.FC = () => {
       date: new Date().toLocaleDateString()
     };
 
-    const updatedList = await LeaderboardService.save(newEntry);
-    setLeaderboard(Array.isArray(updatedList) ? updatedList : []);
-    
-    setScoreSubmitted(true);
-    setIsSubmitting(false);
-    setShowLeaderboard(true);
+    try {
+        const updatedList = await LeaderboardService.save(newEntry);
+        setLeaderboard(Array.isArray(updatedList) ? updatedList : []);
+        setScoreSubmitted(true);
+        setShowLeaderboard(true);
+    } catch (e: any) {
+        // Show error UI
+        setSaveError(e.message || 'Unknown error');
+        setScoreSubmitted(true); // Technically saved locally, but warn user
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const finalScore = calculateScore();
@@ -298,44 +310,43 @@ const App: React.FC = () => {
   const p2Stats = getPlayerStats(player2Name);
 
   return (
-    <div className="h-full w-full bg-gray-900 text-white flex flex-col items-center p-2 font-mono overflow-hidden">
-      {/* Header Area - Flexible but compact */}
-      <header className="shrink-0 text-center relative w-full max-w-3xl flex flex-col items-center mb-2 z-10">
-        <h1 className="text-3xl md:text-5xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-red-400 cursor-pointer drop-shadow-lg" onClick={() => setShowLeaderboard(false)}>
+    <div className="h-full w-full bg-gray-900 text-white flex flex-col items-center font-mono overflow-hidden">
+      {/* Header Area */}
+      <header className="shrink-0 w-full flex flex-col items-center justify-center py-2 relative z-10 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-red-400 cursor-pointer drop-shadow-lg" onClick={() => setShowLeaderboard(false)}>
           PONG XTREME
         </h1>
-        <p className="text-gray-400 text-xs mt-1">Chaotic Arcade Pong</p>
+        <p className="text-gray-400 text-[10px]">Chaotic Arcade Pong</p>
         
         {!gameState.isGameActive && !gameState.winner && (
            <button 
              onClick={() => setShowLeaderboard(!showLeaderboard)}
-             className="absolute right-0 top-1 text-[10px] md:text-xs border border-yellow-500 text-yellow-400 px-2 py-1 rounded hover:bg-yellow-500 hover:text-black transition-colors flex items-center gap-1"
+             className="absolute right-4 top-1/2 -translate-y-1/2 text-xs border border-yellow-500 text-yellow-400 px-3 py-1 rounded hover:bg-yellow-500 hover:text-black transition-colors flex items-center gap-1"
            >
              🏆 RANK
            </button>
         )}
       </header>
       
-      {/* Scoreboard - Shrinks if needed */}
-      <div className="shrink-0 w-full flex justify-center mb-2 z-10">
+      {/* Scoreboard */}
+      <div className="shrink-0 w-full flex justify-center py-2 z-10">
           <ScoreBoard score={gameState.score} playerNames={gameState.playerNames} />
       </div>
 
       {/* Game Container - Fills remaining space and scales content */}
-      <div className="flex-1 w-full flex items-center justify-center relative overflow-hidden">
+      <div ref={containerRef} className="flex-1 w-full flex items-center justify-center relative overflow-hidden p-2">
          {/* Scalable Wrapper */}
          <div 
             style={{ 
                 width: GAME_WIDTH, 
                 height: GAME_HEIGHT,
                 transform: `scale(${gameScale})`,
-                transformOrigin: 'center center' 
             }}
-            className="relative shadow-2xl"
+            className="relative shadow-2xl origin-center"
          >
             <GameBoard gameState={gameState} />
             
-            {/* Leaderboard Overlay (Inside scaled area for consistent look) */}
+            {/* Leaderboard Overlay */}
             {showLeaderboard && !gameState.isGameActive && (
                 <div className="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center p-6 overflow-y-auto border-4 border-yellow-600 rounded-lg shadow-2xl">
                     <h2 className="text-4xl font-bold text-yellow-400 mb-2 uppercase tracking-widest border-b-4 border-yellow-500 pb-2" style={{ fontFamily: '"Bangers", system-ui' }}>
@@ -408,8 +419,13 @@ const App: React.FC = () => {
                     </p>
 
                     {!scoreSubmitted ? (
-                        <div className="bg-gray-800 p-6 rounded-lg border-2 border-blue-500 shadow-2xl mb-6 animate-fade-in-up">
+                        <div className="bg-gray-800 p-6 rounded-lg border-2 border-blue-500 shadow-2xl mb-6 animate-fade-in-up relative">
                             <h3 className="text-xl text-blue-300 mb-2 uppercase font-bold">High Score: <span className="text-white">{finalScore}</span></h3>
+                            {saveError && (
+                                <div className="mb-2 text-xs text-red-400 bg-red-900/20 p-1 rounded border border-red-800">
+                                    ⚠️ Save Error: {saveError}. <br/> Saved locally.
+                                </div>
+                            )}
                             <p className="text-xs text-gray-400 mb-4">Update profile for {gameState.winner}</p>
                             <button 
                                 onClick={handleSubmitScore}
@@ -420,7 +436,9 @@ const App: React.FC = () => {
                             </button>
                         </div>
                     ) : (
-                       <div className="mb-8 text-green-400 font-bold text-xl animate-pulse">SCORE UPDATED!</div> 
+                       <div className="mb-8 text-green-400 font-bold text-xl animate-pulse">
+                           {saveError ? 'SAVED LOCALLY ONLY' : 'SCORE UPDATED!'}
+                       </div> 
                     )}
                     
                     <div className="flex gap-4 justify-center">
@@ -502,7 +520,7 @@ const App: React.FC = () => {
          </div>
       </div>
       
-      <footer className="shrink-0 mt-1 text-gray-600 text-[10px]">
+      <footer className="shrink-0 py-1 text-gray-600 text-[10px] border-t border-gray-800 w-full text-center">
         Built with React & Tailwind.
       </footer>
     </div>
