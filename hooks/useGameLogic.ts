@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, Block } from '../types';
+import { GameState, Block, GameMode } from '../types';
 import {
   GAME_WIDTH,
   GAME_HEIGHT,
@@ -9,6 +9,7 @@ import {
   PADDLE_WIDTH,
   BALL_SIZE,
   INITIAL_BALL_SPEED,
+  HARDCORE_INITIAL_BALL_SPEED,
   MAX_BOUNCE_ANGLE,
   POINTS_TO_START_BLOCKS,
   BLOCK_WIDTH,
@@ -88,7 +89,7 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win') => {
   }
 };
 
-const createInitialState = (): GameState => ({
+const createInitialState = (mode: GameMode = 'classic'): GameState => ({
   paddles: {
     left: { y: GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2 },
     right: { y: GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2 },
@@ -103,13 +104,14 @@ const createInitialState = (): GameState => ({
   isPaused: false,
   winner: null,
   isMasacre: false,
-  ballSpeed: INITIAL_BALL_SPEED,
+  ballSpeed: mode === 'hardcore' ? HARDCORE_INITIAL_BALL_SPEED : INITIAL_BALL_SPEED,
   rallyPaddleHits: 0,
   countdown: 0,
   nextBallDirection: 0,
   lastScorer: null,
   consecutiveStraightHits: 0,
   boardRotation: 0,
+  mode: mode,
 });
 
 export const useGameLogic = () => {
@@ -123,13 +125,13 @@ export const useGameLogic = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  const startGame = useCallback(() => {
+  const startGame = useCallback((mode: GameMode = 'classic') => {
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume().catch(() => {});
     }
     const startDir = Math.random() > 0.5 ? 1 : -1;
     setGameState(prev => ({
-        ...createInitialState(), 
+        ...createInitialState(mode), 
         isGameActive: true,
         countdown: 3,
         nextBallDirection: startDir
@@ -151,7 +153,9 @@ export const useGameLogic = () => {
           const current = gameStateRef.current;
           
           if (!current.isGameActive || current.winner) {
-              startGame();
+              // Default to classic if starting via keyboard on splash screen, 
+              // but realistically buttons are used. If game over, restart same mode.
+              startGame(current.mode); 
           } else {
               setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
           }
@@ -211,10 +215,11 @@ export const useGameLogic = () => {
       };
   };
   
-  // Helper to calculate base speed based on current score level
-  const getSpeedForScore = (totalScore: number) => {
+  // Helper to calculate base speed based on current score level AND mode
+  const getSpeedForScore = (totalScore: number, mode: GameMode) => {
       const progression = Math.min(totalScore, MAX_PROGRESSION_SCORE);
-      return INITIAL_BALL_SPEED + (progression * BALL_SPEED_INCREMENT);
+      const startSpeed = mode === 'hardcore' ? HARDCORE_INITIAL_BALL_SPEED : INITIAL_BALL_SPEED;
+      return startSpeed + (progression * BALL_SPEED_INCREMENT);
   };
 
   const gameLoop = useCallback(() => {
@@ -224,7 +229,7 @@ export const useGameLogic = () => {
       // Pause physics during countdown
       if (prev.countdown > 0) return prev;
 
-      let { paddles, ball, blocks, score } = JSON.parse(JSON.stringify(prev));
+      let { paddles, ball, blocks, score, mode } = JSON.parse(JSON.stringify(prev));
       let newBallSpeed = prev.ballSpeed;
       let rallyPaddleHits = prev.rallyPaddleHits;
       let newConsecutiveStraightHits = prev.consecutiveStraightHits;
@@ -278,8 +283,11 @@ export const useGameLogic = () => {
           return false;
       };
       
-      // Check for Deuce State (4-4 or higher) to trigger rotation
+      // Check for Deuce State (4-4 or higher)
       const isDeuce = score.player1 >= BASE_WINNING_SCORE - 1 && score.player2 >= BASE_WINNING_SCORE - 1;
+      
+      // Check if board should rotate on paddle hit
+      const shouldRotateOnPaddle = isDeuce || mode === 'hardcore';
 
       // Calculate total score from current state
       const currentTotalScore = score.player1 + score.player2;
@@ -324,9 +332,9 @@ export const useGameLogic = () => {
              newConsecutiveStraightHits = 0;
         }
         
-        // Rotate Board in Deuce
-        if (isDeuce) {
-            newBoardRotation += (Math.random() * 8 - 4); // Random rotation between -4 and 4 degrees
+        // Rotate Board
+        if (shouldRotateOnPaddle) {
+            newBoardRotation += (Math.random() * 8 - 4); 
         }
 
         ball.velocity.x = newBallSpeed * Math.cos(bounceAngle);
@@ -362,9 +370,9 @@ export const useGameLogic = () => {
              newConsecutiveStraightHits = 0;
         }
         
-        // Rotate Board in Deuce
-        if (isDeuce) {
-            newBoardRotation += (Math.random() * 8 - 4); // Random rotation between -4 and 4 degrees
+        // Rotate Board
+        if (shouldRotateOnPaddle) {
+            newBoardRotation += (Math.random() * 8 - 4); 
         }
 
         ball.velocity.x = -newBallSpeed * Math.cos(bounceAngle);
@@ -393,6 +401,10 @@ export const useGameLogic = () => {
             ball.velocity.y *= -1;
             ball.position.y += (dy > 0 ? overlapY + epsilon : -overlapY - epsilon);
           }
+          
+          // Always rotate slightly on block hit to give feedback, more chaos in hardcore or just general feedback
+          newBoardRotation += (Math.random() * 6 - 3);
+
           playGameSound('block');
           break; 
         }
@@ -412,7 +424,7 @@ export const useGameLogic = () => {
         
         // Reset Ball Speed Logic:
         // Discard rally speed bonus, recalculate base speed based on new score
-        newBallSpeed = getSpeedForScore(score.player1 + score.player2);
+        newBallSpeed = getSpeedForScore(score.player1 + score.player2, mode);
         
         rallyPaddleHits = 0;
         newConsecutiveStraightHits = 0;
@@ -429,7 +441,7 @@ export const useGameLogic = () => {
         lastScorer = 'Player 1';
         
         // Reset Ball Speed Logic
-        newBallSpeed = getSpeedForScore(score.player1 + score.player2);
+        newBallSpeed = getSpeedForScore(score.player1 + score.player2, mode);
 
         rallyPaddleHits = 0;
         newConsecutiveStraightHits = 0;
@@ -446,7 +458,6 @@ export const useGameLogic = () => {
       const someoneScored = (ball.velocity.x === 0 && newCountdown === 3); 
       
       // Spawn blocks every point after score reaches threshold. 
-      // Removed MAX_PROGRESSION_SCORE cap for spawning, so blocks continue to spawn indefinitely.
       if (someoneScored && totalScore >= POINTS_TO_START_BLOCKS) {
           const canSpawnMultiple = blocks.length >= 2;
           let numToSpawn = 1;

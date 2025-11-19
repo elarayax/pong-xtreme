@@ -36,12 +36,20 @@ const App: React.FC = () => {
                    <h2 className="text-5xl font-bold text-yellow-400 mb-4">GAME OVER</h2>
                 )}
                 <p className="text-2xl mb-6 text-white">{gameState.winner} wins!</p>
-                <button
-                  onClick={startGame}
-                  className="px-8 py-4 bg-green-500 hover:bg-green-600 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105"
-                >
-                  Play Again (Press Space)
-                </button>
+                <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={() => startGame('classic')}
+                      className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold text-lg rounded-lg shadow-lg transition-transform transform hover:scale-105"
+                    >
+                      Play Classic
+                    </button>
+                    <button
+                      onClick={() => startGame('hardcore')}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-lg rounded-lg shadow-lg transition-transform transform hover:scale-105 border-2 border-orange-500"
+                    >
+                      🔥 Hardcore
+                    </button>
+                </div>
               </>
             ) : (
               <>
@@ -54,15 +62,24 @@ const App: React.FC = () => {
                 </div>
                  <p className="text-sm mt-6 text-gray-400 max-w-md">
                    First to 5 (win by 2).<br/>
-                   Speed increases until 5th point.<br/>
-                   <strong>Space/Enter</strong> to Start or Pause.
+                   <strong>Space/Enter</strong> to Pause.
                  </p>
-                <button
-                  onClick={startGame}
-                  className="mt-8 px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105"
-                >
-                  Start Game
-                </button>
+                 
+                 <div className="mt-8 flex gap-4 justify-center">
+                    <button
+                      onClick={() => startGame('classic')}
+                      className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105"
+                    >
+                      Classic Mode
+                    </button>
+                    <button
+                      onClick={() => startGame('hardcore')}
+                      className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105 border-2 border-yellow-500"
+                    >
+                      🔥 Hardcore
+                    </button>
+                 </div>
+                 <p className="text-xs text-gray-500 mt-2">Hardcore: Faster speed, constant chaos.</p>
               </>
             )}
           </div>

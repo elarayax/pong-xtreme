@@ -17,6 +17,8 @@ export interface Block {
   position: Vector;
 }
 
+export type GameMode = 'classic' | 'hardcore';
+
 export interface GameState {
   paddles: { left: Paddle; right: Paddle };
   ball: Ball;
@@ -32,5 +34,6 @@ export interface GameState {
   nextBallDirection: number;
   lastScorer: string | null;
   consecutiveStraightHits: number;
-  boardRotation: number; // New rotation state
+  boardRotation: number;
+  mode: GameMode;
 }
