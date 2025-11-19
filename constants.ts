@@ -9,6 +9,7 @@ export const PADDLE_SPEED = 11; // Increased from 8 for faster movement
 export const BALL_SIZE = 15;
 export const INITIAL_BALL_SPEED = 7;
 export const BALL_SPEED_INCREMENT = 0.5;
+export const MAX_BALL_SPEED = 14; // Cap speed to slightly less than block width to prevent tunneling
 
 // New Speed Logic
 export const RALLY_HITS_THRESHOLD = 5; // Start speeding up after 5 hits

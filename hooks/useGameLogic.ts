@@ -20,6 +20,7 @@ import {
   RALLY_HITS_INTERVAL,
   MAX_PROGRESSION_SCORE,
   MAX_BLOCKS_ON_SCREEN,
+  MAX_BALL_SPEED,
 } from '../constants';
 
 // Sound Utility
@@ -208,6 +209,12 @@ export const useGameLogic = () => {
         velocity: { x: 0, y: 0 }, // Stop ball for countdown
       };
   };
+  
+  // Helper to calculate base speed based on current score level
+  const getSpeedForScore = (totalScore: number) => {
+      const progression = Math.min(totalScore, MAX_PROGRESSION_SCORE);
+      return INITIAL_BALL_SPEED + (progression * BALL_SPEED_INCREMENT);
+  };
 
   const gameLoop = useCallback(() => {
     setGameState((prev) => {
@@ -233,6 +240,11 @@ export const useGameLogic = () => {
       }
       if (keysPressed.current['ArrowDown']) {
         paddles.right.y = Math.min(GAME_HEIGHT - PADDLE_HEIGHT, paddles.right.y + PADDLE_SPEED);
+      }
+
+      // Cap Speed
+      if (newBallSpeed > MAX_BALL_SPEED) {
+          newBallSpeed = MAX_BALL_SPEED;
       }
 
       // Move ball
@@ -278,6 +290,8 @@ export const useGameLogic = () => {
         if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
              newBallSpeed += BALL_SPEED_INCREMENT;
         }
+        // Cap speed again in case increment pushed it over
+        newBallSpeed = Math.min(newBallSpeed, MAX_BALL_SPEED);
 
         const relativeIntersectY = (paddles.left.y + PADDLE_HEIGHT / 2) - ball.position.y;
         const normalizedIntersectY = relativeIntersectY / (PADDLE_HEIGHT / 2);
@@ -306,6 +320,8 @@ export const useGameLogic = () => {
         if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
              newBallSpeed += BALL_SPEED_INCREMENT;
         }
+        // Cap speed again
+        newBallSpeed = Math.min(newBallSpeed, MAX_BALL_SPEED);
 
         const relativeIntersectY = (paddles.right.y + PADDLE_HEIGHT / 2) - ball.position.y;
         const normalizedIntersectY = relativeIntersectY / (PADDLE_HEIGHT / 2);
@@ -341,12 +357,15 @@ export const useGameLogic = () => {
           const overlapX = combinedHalfWidths - Math.abs(dx);
           const overlapY = combinedHalfHeights - Math.abs(dy);
 
+          // Small buffer to prevent sticking (epsilon)
+          const epsilon = 0.2; 
+
           if (overlapX < overlapY) {
             ball.velocity.x *= -1;
-            ball.position.x += (dx > 0 ? overlapX : -overlapX);
+            ball.position.x += (dx > 0 ? overlapX + epsilon : -overlapX - epsilon);
           } else {
             ball.velocity.y *= -1;
-            ball.position.y += (dy > 0 ? overlapY : -overlapY);
+            ball.position.y += (dy > 0 ? overlapY + epsilon : -overlapY - epsilon);
           }
           playGameSound('block');
           break; 
@@ -364,9 +383,11 @@ export const useGameLogic = () => {
         score.player2++;
         playGameSound('score');
         lastScorer = 'Player 2';
-        if ((score.player1 + score.player2) < MAX_PROGRESSION_SCORE) {
-           newBallSpeed += BALL_SPEED_INCREMENT; 
-        }
+        
+        // Reset Ball Speed Logic:
+        // Discard rally speed bonus, recalculate base speed based on new score
+        newBallSpeed = getSpeedForScore(score.player1 + score.player2);
+        
         rallyPaddleHits = 0;
         newConsecutiveStraightHits = 0;
         ball = resetBallPosition(1);
@@ -374,13 +395,15 @@ export const useGameLogic = () => {
         newDirection = 1;
         paddles.left.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
         paddles.right.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
+
       } else if (ball.position.x > GAME_WIDTH) {
         score.player1++;
         playGameSound('score');
         lastScorer = 'Player 1';
-        if ((score.player1 + score.player2) < MAX_PROGRESSION_SCORE) {
-            newBallSpeed += BALL_SPEED_INCREMENT;
-        }
+        
+        // Reset Ball Speed Logic
+        newBallSpeed = getSpeedForScore(score.player1 + score.player2);
+
         rallyPaddleHits = 0;
         newConsecutiveStraightHits = 0;
         ball = resetBallPosition(-1);
