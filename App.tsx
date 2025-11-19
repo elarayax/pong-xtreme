@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import ScoreBoard from './components/ScoreBoard';
 import GameBoard from './components/GameBoard';
 import { useGameLogic } from './hooks/useGameLogic';
-import { LeaderboardEntry } from './types';
+import { LeaderboardEntry, GameMode } from './types';
 
 // --- CONFIGURATION FOR GLOBAL LEADERBOARD ---
 // SECURITY UPDATE: We now use Environment Variables.
@@ -44,29 +44,41 @@ const LeaderboardService = {
         if (!response.ok) throw new Error(`Cloud fetch failed: ${response.statusText}`);
         const data = await response.json();
         
-        // ROBUST PARSING:
-        // 1. Check if 'record' is directly an array.
-        // 2. Check if 'record' has a 'users' property (like the user's placeholder).
-        // 3. Fallback to empty array.
         let rawList: any[] = [];
+        
+        // ROBUST PARSING STRATEGY
         if (Array.isArray(data.record)) {
+            // Case 1: Root array
             rawList = data.record;
         } else if (data.record && Array.isArray(data.record.users)) {
-            rawList = data.record.users;
+            // Case 2: Wrapped in 'users' (User's custom structure)
+            // We need to map 'user' field to 'name' if 'name' is missing
+            rawList = data.record.users.map((u: any) => ({
+                ...u,
+                name: u.name || u.user || 'Unknown', // Map 'user' to 'name'
+                score: u.score || (u.wins ? u.wins * 100 : 0) // Fallback score if using custom structure
+            }));
         }
 
-        // VALIDATION:
-        // Filter out entries that don't match our game schema (e.g. missing score/name)
-        // This prevents the app from crashing if the JSON contains "wins"/"loose" format.
-        return rawList.filter((item: any) => 
+        // VALIDATION & SANITIZATION
+        const cleanData = rawList.filter((item: any) => 
             typeof item === 'object' && 
-            typeof item.name === 'string' && 
+            item !== null &&
+            (typeof item.name === 'string' || typeof item.user === 'string') && 
             typeof item.score === 'number'
-        );
+        ).map((item: any) => ({
+            // Normalize data structure
+            name: item.name || item.user,
+            score: item.score,
+            mode: item.mode || 'classic',
+            isMasacre: !!item.isMasacre,
+            date: item.date || new Date().toLocaleDateString()
+        }));
+
+        return cleanData;
 
       } catch (error) {
         console.warn("Cloud fetch error, falling back to local:", error);
-        // Fallback to local on error to show something
         return this.getLocal();
       }
     }
@@ -75,34 +87,41 @@ const LeaderboardService = {
   },
 
   async save(newEntry: LeaderboardEntry): Promise<LeaderboardEntry[]> {
-    // 1. Get latest data first (to avoid overwrites in simple concurrency)
-    const currentList = await this.get();
+    // 1. Get latest data first
+    let currentList: LeaderboardEntry[] = [];
+    try {
+        currentList = await this.get();
+        if (!Array.isArray(currentList)) currentList = [];
+    } catch (e) {
+        currentList = [];
+    }
     
     // 2. Process List
     const updatedList = [...currentList, newEntry]
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+      .slice(0, 10); // Keep top 10
 
     // 3. Save Cloud
     if (this.isCloudConfigured()) {
       try {
+        // We wrap in "users" to match the user's preferred structure format if they wish, 
+        // but for simplicity in reading back, we'll save the flat array or the object wrapper.
+        // Let's save as the object wrapper to be consistent with what the user set up.
+        const payload = { users: updatedList };
+
         await fetch(this.getUrl(), {
           method: 'PUT',
           headers: {
             'X-Master-Key': JSONBIN_API_KEY.trim(),
             'Content-Type': 'application/json'
           },
-          // We save as a clean array, overwriting any previous object structure
-          // This self-corrects the "users" object wrapper on the first save.
-          body: JSON.stringify(updatedList)
+          body: JSON.stringify(payload)
         });
       } catch (error) {
         console.error("Cloud save error:", error);
-        // Save local as backup
         this.saveLocal(updatedList);
       }
     } else {
-        // Save Local
         this.saveLocal(updatedList);
     }
     
@@ -112,7 +131,8 @@ const LeaderboardService = {
   getLocal(): LeaderboardEntry[] {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error("Local storage error", e);
       return [];
@@ -133,20 +153,29 @@ const App: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
-  const [playerName, setPlayerName] = useState('');
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Input State for Pre-game
+  const [player1Name, setPlayer1Name] = useState('PLAYER 1');
+  const [player2Name, setPlayer2Name] = useState('PLAYER 2');
 
   // Load leaderboard
   const loadLeaderboard = useCallback(async () => {
     if (LeaderboardService.isCloudConfigured()) {
         setIsLoadingLeaderboard(true);
-        const data = await LeaderboardService.get();
-        setLeaderboard(data);
-        setIsLoadingLeaderboard(false);
+        try {
+            const data = await LeaderboardService.get();
+            // CRITICAL FIX: Ensure we always set an array
+            setLeaderboard(Array.isArray(data) ? data : []);
+        } catch (e) {
+            setLeaderboard([]);
+        } finally {
+            setIsLoadingLeaderboard(false);
+        }
     } else {
-        // Local load is instant, no spinner needed
-        setLeaderboard(LeaderboardService.get());
+        const data = LeaderboardService.get();
+        setLeaderboard(Array.isArray(data) ? data : []);
     }
   }, []);
 
@@ -166,23 +195,26 @@ const App: React.FC = () => {
   useEffect(() => {
     if (gameState.isGameActive) {
       setScoreSubmitted(false);
-      setPlayerName('');
     }
   }, [gameState.isGameActive]);
 
+  const handleStartGame = (mode: GameMode) => {
+      const p1 = player1Name.trim() || 'PLAYER 1';
+      const p2 = player2Name.trim() || 'PLAYER 2';
+      startGame(mode, p1, p2);
+  };
+
   const calculateScore = () => {
-    const winnerScore = gameState.winner === 'Player 1' ? gameState.score.player1 : gameState.score.player2;
-    const loserScore = gameState.winner === 'Player 1' ? gameState.score.player2 : gameState.score.player1;
+    const winnerScore = gameState.winner === gameState.playerNames.player1 ? gameState.score.player1 : gameState.score.player2;
+    const loserScore = gameState.winner === gameState.playerNames.player1 ? gameState.score.player2 : gameState.score.player1;
     const diff = winnerScore - loserScore;
     
     let points = diff * 100;
     
-    // Hardcore multiplier (x2)
     if (gameState.mode === 'hardcore') {
       points *= 2;
     }
     
-    // Masacre bonus
     if (gameState.isMasacre) {
       points += 1000;
     }
@@ -190,24 +222,23 @@ const App: React.FC = () => {
     return points;
   };
 
-  const handleSubmitScore = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!playerName.trim() || isSubmitting) return;
+  const handleSubmitScore = async () => {
+    if (isSubmitting || !gameState.winner) return;
 
     setIsSubmitting(true);
     const points = calculateScore();
     
     const newEntry: LeaderboardEntry = {
-      name: playerName.toUpperCase().substring(0, 10), // Limit name length
+      name: gameState.winner.toUpperCase().substring(0, 10), 
       score: points,
       mode: gameState.mode,
       isMasacre: gameState.isMasacre,
       date: new Date().toLocaleDateString()
     };
 
-    // Save via service (handles cloud or local)
     const updatedList = await LeaderboardService.save(newEntry);
-    setLeaderboard(updatedList);
+    // CRITICAL FIX: Ensure we update state with array
+    setLeaderboard(Array.isArray(updatedList) ? updatedList : []);
     
     setScoreSubmitted(true);
     setIsSubmitting(false);
@@ -216,9 +247,29 @@ const App: React.FC = () => {
 
   const finalScore = calculateScore();
 
+  // Helper to get stats for a specific player name from leaderboard
+  const getPlayerStats = (name: string) => {
+      if (!name || name.trim() === '') return null;
+      const cleanName = name.trim().toUpperCase();
+      // Safe check for array before filter
+      if (!Array.isArray(leaderboard)) return null;
+      
+      const playerEntries = leaderboard.filter(entry => entry.name && entry.name.toUpperCase() === cleanName);
+      
+      if (playerEntries.length === 0) return null;
+
+      const bestScore = Math.max(...playerEntries.map(e => e.score));
+      const wins = playerEntries.length;
+
+      return { wins, bestScore };
+  };
+
+  const p1Stats = getPlayerStats(player1Name);
+  const p2Stats = getPlayerStats(player2Name);
+
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 font-mono">
-      <header className="text-center mb-4 relative w-full max-w-3xl">
+      <header className="text-center mb-4 relative w-full max-w-3xl flex flex-col items-center">
         <h1 className="text-4xl md:text-6xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-red-400 cursor-pointer" onClick={() => setShowLeaderboard(false)}>
           PONG XTREME
         </h1>
@@ -234,7 +285,7 @@ const App: React.FC = () => {
         )}
       </header>
       
-      <ScoreBoard score={gameState.score} />
+      <ScoreBoard score={gameState.score} playerNames={gameState.playerNames} />
 
       <div className="relative">
         <GameBoard gameState={gameState} />
@@ -253,7 +304,7 @@ const App: React.FC = () => {
                     <div className="flex items-center justify-center h-40">
                         <div className="text-yellow-400 animate-pulse text-xl">LOADING SCORES...</div>
                     </div>
-                ) : leaderboard.length === 0 ? (
+                ) : (!Array.isArray(leaderboard) || leaderboard.length === 0) ? (
                     <p className="text-gray-500 mt-10">No records yet. Be the first!</p>
                 ) : (
                     <table className="w-full text-left border-collapse">
@@ -312,75 +363,92 @@ const App: React.FC = () => {
 
                 {!scoreSubmitted ? (
                     <div className="bg-gray-800 p-6 rounded-lg border-2 border-blue-500 shadow-2xl mb-6 animate-fade-in-up">
-                        <h3 className="text-xl text-blue-300 mb-2 uppercase font-bold">New High Score: <span className="text-white">{finalScore}</span></h3>
-                        <p className="text-xs text-gray-400 mb-4">Enter your name for the Hall of Fame</p>
-                        <form onSubmit={handleSubmitScore} className="flex flex-col gap-3">
-                            <input 
-                                type="text" 
-                                value={playerName}
-                                onChange={(e) => setPlayerName(e.target.value)}
-                                placeholder="AAA"
-                                maxLength={10}
-                                className="bg-gray-900 text-center text-2xl text-white border border-gray-600 rounded p-2 uppercase tracking-widest focus:outline-none focus:border-blue-400"
-                                autoFocus
-                            />
-                            <button 
-                                type="submit"
-                                disabled={!playerName.trim() || isSubmitting}
-                                className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded uppercase transition-colors flex items-center justify-center gap-2"
-                            >
-                                {isSubmitting ? 'Saving...' : 'Submit Score'}
-                            </button>
-                        </form>
+                        <h3 className="text-xl text-blue-300 mb-2 uppercase font-bold">High Score: <span className="text-white">{finalScore}</span></h3>
+                        <p className="text-xs text-gray-400 mb-4">Update profile for {gameState.winner}</p>
+                        <button 
+                            onClick={handleSubmitScore}
+                            disabled={isSubmitting}
+                            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded uppercase transition-colors flex items-center justify-center gap-2 shadow-lg"
+                        >
+                            {isSubmitting ? 'Updating...' : '💾 Save Score'}
+                        </button>
                     </div>
                 ) : (
-                   <div className="mb-8 text-green-400 font-bold text-xl animate-pulse">SCORE SAVED!</div> 
+                   <div className="mb-8 text-green-400 font-bold text-xl animate-pulse">SCORE UPDATED!</div> 
                 )}
                 
                 <div className="flex gap-4 justify-center">
                     <button
-                      onClick={() => startGame('classic')}
+                      onClick={() => handleStartGame('classic')}
                       className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold text-lg rounded-lg shadow-lg transition-transform transform hover:scale-105"
                     >
-                      Play Classic
-                    </button>
-                    <button
-                      onClick={() => startGame('hardcore')}
-                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-lg rounded-lg shadow-lg transition-transform transform hover:scale-105 border-2 border-orange-500"
-                    >
-                      🔥 Hardcore
+                      Play Again
                     </button>
                 </div>
               </>
             ) : (
               <>
-                <h2 className="text-3xl font-bold mb-4">Controls</h2>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-lg">
-                  <p className="text-blue-400 font-semibold">Player 1:</p>
-                  <p className="text-gray-200">'W' (Up) & 'S' (Down)</p>
-                  <p className="text-red-400 font-semibold">Player 2:</p>
-                  <p className="text-gray-200">'↑' (Up) & '↓' (Down)</p>
+                <div className="mb-6 w-full max-w-md">
+                   <h3 className="text-xl text-yellow-400 font-bold mb-3 uppercase tracking-wider">WHO IS FIGHTING?</h3>
+                   <div className="flex gap-4 items-start">
+                       <div className="flex-1 flex flex-col gap-1">
+                           <input 
+                               type="text"
+                               value={player1Name}
+                               onChange={(e) => setPlayer1Name(e.target.value)}
+                               placeholder="PLAYER 1"
+                               maxLength={10}
+                               className="w-full bg-gray-800 border-2 border-blue-500 text-blue-300 text-center font-bold py-2 rounded uppercase focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-blue-800"
+                           />
+                           {p1Stats && (
+                               <div className="text-[10px] text-blue-300 bg-blue-900/30 rounded py-1 px-2 flex justify-between items-center animate-fade-in">
+                                   <span>🏆 Wins: {p1Stats.wins}</span>
+                                   <span>🔥 Best: {p1Stats.bestScore}</span>
+                               </div>
+                           )}
+                       </div>
+                       <div className="flex items-center text-gray-500 font-black italic mt-2">VS</div>
+                       <div className="flex-1 flex flex-col gap-1">
+                           <input 
+                               type="text"
+                               value={player2Name}
+                               onChange={(e) => setPlayer2Name(e.target.value)}
+                               placeholder="PLAYER 2"
+                               maxLength={10}
+                               className="w-full bg-gray-800 border-2 border-red-500 text-red-300 text-center font-bold py-2 rounded uppercase focus:outline-none focus:ring-2 focus:ring-red-400 placeholder-red-800"
+                           />
+                           {p2Stats && (
+                               <div className="text-[10px] text-red-300 bg-red-900/30 rounded py-1 px-2 flex justify-between items-center animate-fade-in">
+                                   <span>🏆 Wins: {p2Stats.wins}</span>
+                                   <span>🔥 Best: {p2Stats.bestScore}</span>
+                               </div>
+                           )}
+                       </div>
+                   </div>
                 </div>
-                 <p className="text-sm mt-6 text-gray-400 max-w-md">
-                   First to 5 (win by 2).<br/>
-                   <strong>Space/Enter</strong> to Pause.
-                 </p>
-                 
-                 <div className="mt-8 flex gap-4 justify-center">
+
+                <h2 className="text-2xl font-bold mb-2">Select Mode</h2>
+                
+                 <div className="mt-4 flex gap-4 justify-center">
                     <button
-                      onClick={() => startGame('classic')}
+                      onClick={() => handleStartGame('classic')}
                       className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105"
                     >
-                      Classic Mode
+                      Classic
                     </button>
                     <button
-                      onClick={() => startGame('hardcore')}
+                      onClick={() => handleStartGame('hardcore')}
                       className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105 border-2 border-yellow-500"
                     >
                       🔥 Hardcore
                     </button>
                  </div>
-                 <p className="text-xs text-gray-500 mt-2">Hardcore: Faster speed, constant chaos.</p>
+                 <p className="text-xs text-gray-500 mt-4">Hardcore: Faster speed, constant chaos.</p>
+                 <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm mt-4 opacity-60">
+                  <p>P1: <span className="text-blue-400">W / S</span></p>
+                  <p>P2: <span className="text-red-400">↑ / ↓</span></p>
+                  <p className="col-span-2 text-center mt-1">Space to Pause</p>
+                </div>
               </>
             )}
           </div>

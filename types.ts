@@ -24,6 +24,7 @@ export interface GameState {
   ball: Ball;
   blocks: Block[];
   score: { player1: number; player2: number };
+  playerNames: { player1: string; player2: string };
   isGameActive: boolean;
   isPaused: boolean;
   winner: string | null;

@@ -115,7 +115,7 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win', extr
   }
 };
 
-const createInitialState = (mode: GameMode = 'classic'): GameState => ({
+const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player 1', p2Name: string = 'Player 2'): GameState => ({
   paddles: {
     left: { y: GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2 },
     right: { y: GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2 },
@@ -126,6 +126,7 @@ const createInitialState = (mode: GameMode = 'classic'): GameState => ({
   },
   blocks: [],
   score: { player1: 0, player2: 0 },
+  playerNames: { player1: p1Name, player2: p2Name },
   isGameActive: false,
   isPaused: false,
   winner: null,
@@ -151,7 +152,7 @@ export const useGameLogic = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  const startGame = useCallback((mode: GameMode = 'classic') => {
+  const startGame = useCallback((mode: GameMode = 'classic', p1Name: string, p2Name: string) => {
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume().catch(() => {});
     }
@@ -162,7 +163,7 @@ export const useGameLogic = () => {
 
     const startDir = Math.random() > 0.5 ? 1 : -1;
     setGameState(prev => ({
-        ...createInitialState(mode), 
+        ...createInitialState(mode, p1Name, p2Name), 
         isGameActive: true,
         countdown: 3,
         nextBallDirection: startDir
@@ -184,9 +185,9 @@ export const useGameLogic = () => {
           const current = gameStateRef.current;
           
           if (!current.isGameActive || current.winner) {
-              // Default to classic if starting via keyboard on splash screen, 
-              // but realistically buttons are used. If game over, restart same mode.
-              startGame(current.mode); 
+              // We don't auto-restart here anymore because we need the name inputs
+              // Just ignore or maybe trigger the default start if names are set?
+              // For now, let's strictly use the UI buttons for start to capture names properly.
           } else {
               setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
           }
@@ -260,7 +261,7 @@ export const useGameLogic = () => {
       // Pause physics during countdown
       if (prev.countdown > 0) return prev;
 
-      let { paddles, ball, blocks, score, mode } = JSON.parse(JSON.stringify(prev));
+      let { paddles, ball, blocks, score, mode, playerNames } = JSON.parse(JSON.stringify(prev));
       let newBallSpeed = prev.ballSpeed;
       let rallyPaddleHits = prev.rallyPaddleHits;
       let newConsecutiveStraightHits = prev.consecutiveStraightHits;
@@ -451,7 +452,7 @@ export const useGameLogic = () => {
       if (ball.position.x < 0) {
         score.player2++;
         playGameSound('score');
-        lastScorer = 'Player 2';
+        lastScorer = playerNames.player2; // Use Custom Name
         
         // Reset Ball Speed Logic:
         // Discard rally speed bonus, recalculate base speed based on new score
@@ -469,7 +470,7 @@ export const useGameLogic = () => {
       } else if (ball.position.x > GAME_WIDTH) {
         score.player1++;
         playGameSound('score');
-        lastScorer = 'Player 1';
+        lastScorer = playerNames.player1; // Use Custom Name
         
         // Reset Ball Speed Logic
         newBallSpeed = getSpeedForScore(score.player1 + score.player2, mode);
@@ -543,10 +544,10 @@ export const useGameLogic = () => {
       
       if ((score.player1 >= BASE_WINNING_SCORE || score.player2 >= BASE_WINNING_SCORE) && scoreDiff >= WIN_BY_MARGIN) {
           if (score.player1 > score.player2) {
-              newWinner = 'Player 1';
+              newWinner = playerNames.player1; // Use custom name
               if (score.player2 === 0) isMasacre = true;
           } else {
-              newWinner = 'Player 2';
+              newWinner = playerNames.player2; // Use custom name
               if (score.player1 === 0) isMasacre = true;
           }
           isGameActive = false;
