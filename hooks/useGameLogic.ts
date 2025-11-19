@@ -79,14 +79,7 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win', extr
         oscillator.stop(now + 0.3);
         break;
       case 'win':
-        // Background Fanfare
-        oscillator.type = 'sawtooth';
-        oscillator.frequency.setValueAtTime(400, now);
-        oscillator.frequency.linearRampToValueAtTime(1000, now + 0.5);
-        gainNode.gain.setValueAtTime(0.3, now);
-        gainNode.gain.linearRampToValueAtTime(0, now + 1.5);
-        oscillator.start(now);
-        oscillator.stop(now + 1.5);
+        // Silence the synth fanfare, only voice will play below
         break;
     }
   }
