@@ -251,9 +251,14 @@ export const useGameLogic = () => {
       ball.position.x += ball.velocity.x;
       ball.position.y += ball.velocity.y;
 
-      // Wall collision (top/bottom)
-      if (ball.position.y - BALL_SIZE / 2 <= 0 || ball.position.y + BALL_SIZE / 2 >= GAME_HEIGHT) {
-        ball.velocity.y *= -1;
+      // Wall collision (top/bottom) - Improved to prevent sticking
+      if (ball.position.y - BALL_SIZE / 2 <= 0) {
+        ball.position.y = BALL_SIZE / 2; // Clamp position
+        ball.velocity.y = Math.abs(ball.velocity.y); // Force down
+        playGameSound('wall');
+      } else if (ball.position.y + BALL_SIZE / 2 >= GAME_HEIGHT) {
+        ball.position.y = GAME_HEIGHT - BALL_SIZE / 2; // Clamp position
+        ball.velocity.y = -Math.abs(ball.velocity.y); // Force up
         playGameSound('wall');
       }
 
@@ -286,6 +291,9 @@ export const useGameLogic = () => {
         ball.position.y < paddles.right.y + PADDLE_HEIGHT;
       
       if (isCollidingWithLeftPaddle && ball.velocity.x < 0) {
+        // Push ball out of paddle to prevent stuck loop
+        ball.position.x = 20 + PADDLE_WIDTH + BALL_SIZE / 2 + 1;
+
         rallyPaddleHits++;
         if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
              newBallSpeed += BALL_SPEED_INCREMENT;
@@ -316,6 +324,9 @@ export const useGameLogic = () => {
         playGameSound('paddle');
 
       } else if (isCollidingWithRightPaddle && ball.velocity.x > 0) {
+        // Push ball out of paddle to prevent stuck loop
+        ball.position.x = GAME_WIDTH - 20 - PADDLE_WIDTH - BALL_SIZE / 2 - 1;
+
         rallyPaddleHits++;
         if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
              newBallSpeed += BALL_SPEED_INCREMENT;
