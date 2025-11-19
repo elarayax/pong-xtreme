@@ -19,6 +19,7 @@ export const MAX_BOUNCE_ANGLE = Math.PI / 4; // 45 degrees
 export const BLOCK_WIDTH = 15;
 export const BLOCK_HEIGHT = 40;
 export const POINTS_TO_START_BLOCKS = 2; // Blocks start appearing when total score is >= 2
+export const MAX_BLOCKS_ON_SCREEN = 5; // Limits blocks to keep the game dynamic (FIFO)
 
 export const BASE_WINNING_SCORE = 5;
 export const WIN_BY_MARGIN = 2;

@@ -19,6 +19,7 @@ import {
   RALLY_HITS_THRESHOLD,
   RALLY_HITS_INTERVAL,
   MAX_PROGRESSION_SCORE,
+  MAX_BLOCKS_ON_SCREEN,
 } from '../constants';
 
 // Sound Utility
@@ -393,50 +394,53 @@ export const useGameLogic = () => {
       const totalScore = score.player1 + score.player2;
       const someoneScored = (ball.velocity.x === 0 && newCountdown === 3); 
       
-      // Spawn blocks every point after score reaches threshold AND below max progression
-      if (someoneScored && totalScore >= POINTS_TO_START_BLOCKS && totalScore < MAX_PROGRESSION_SCORE) {
-          // Cap max blocks
-          if (blocks.length < totalScore + 2) {
-            const canSpawnMultiple = blocks.length >= 2;
-            let numToSpawn = 1;
+      // Spawn blocks every point after score reaches threshold. 
+      // Removed MAX_PROGRESSION_SCORE cap for spawning, so blocks continue to spawn indefinitely.
+      if (someoneScored && totalScore >= POINTS_TO_START_BLOCKS) {
+          const canSpawnMultiple = blocks.length >= 2;
+          let numToSpawn = 1;
 
-            if (canSpawnMultiple) {
-                const r1 = Math.random();
-                if (r1 < 0.8) { 
-                    numToSpawn = 2;
-                    const r2 = Math.random();
-                    if (r2 < 0.4) { 
-                        numToSpawn = 3;
-                        const r3 = Math.random();
-                        if (r3 < 0.1) { 
-                            numToSpawn = 4;
-                        }
-                    }
-                }
-            }
-
-            for (let i = 0; i < numToSpawn; i++) {
-              let attempt = 0;
-              let placed = false;
-              
-              while (attempt < 10 && !placed) {
-                const newY = Math.random() * (GAME_HEIGHT - BLOCK_HEIGHT);
-                // Check overlap with existing blocks
-                const isOverlapping = blocks.some(b => Math.abs(b.position.y - newY) < BLOCK_HEIGHT + 5);
-                
-                if (!isOverlapping) {
-                    const newBlock: Block = {
-                        position: {
-                            x: GAME_WIDTH / 2 - BLOCK_WIDTH / 2,
-                            y: newY,
-                        }
-                    };
-                    blocks.push(newBlock);
-                    placed = true;
-                }
-                attempt++;
+          if (canSpawnMultiple) {
+              const r1 = Math.random();
+              if (r1 < 0.8) { 
+                  numToSpawn = 2;
+                  const r2 = Math.random();
+                  if (r2 < 0.4) { 
+                      numToSpawn = 3;
+                      const r3 = Math.random();
+                      if (r3 < 0.1) { 
+                          numToSpawn = 4;
+                      }
+                  }
               }
+          }
+
+          for (let i = 0; i < numToSpawn; i++) {
+            let attempt = 0;
+            let placed = false;
+            
+            while (attempt < 10 && !placed) {
+              const newY = Math.random() * (GAME_HEIGHT - BLOCK_HEIGHT);
+              // Check overlap with existing blocks
+              const isOverlapping = blocks.some(b => Math.abs(b.position.y - newY) < BLOCK_HEIGHT + 5);
+              
+              if (!isOverlapping) {
+                  const newBlock: Block = {
+                      position: {
+                          x: GAME_WIDTH / 2 - BLOCK_WIDTH / 2,
+                          y: newY,
+                      }
+                  };
+                  blocks.push(newBlock);
+                  placed = true;
+              }
+              attempt++;
             }
+          }
+
+          // Remove old blocks if we exceed the limit (FIFO)
+          while (blocks.length > MAX_BLOCKS_ON_SCREEN) {
+             blocks.shift();
           }
       }
 
