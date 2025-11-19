@@ -37,3 +37,11 @@ export interface GameState {
   boardRotation: number;
   mode: GameMode;
 }
+
+export interface LeaderboardEntry {
+  name: string;
+  score: number;
+  mode: GameMode;
+  isMasacre: boolean;
+  date: string;
+}

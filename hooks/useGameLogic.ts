@@ -27,65 +27,91 @@ import {
 // Sound Utility
 const audioCtx = typeof window !== 'undefined' ? new (window.AudioContext || (window as any).webkitAudioContext)() : null;
 
-const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win') => {
-  if (!audioCtx) return;
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
+const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win', extraData?: string) => {
+  // Audio Context for SFX
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    switch (type) {
+      case 'paddle':
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(400, now);
+        oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        oscillator.start(now);
+        oscillator.stop(now + 0.1);
+        break;
+      case 'wall':
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(300, now);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+        oscillator.start(now);
+        oscillator.stop(now + 0.05);
+        break;
+      case 'block':
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(600, now);
+        oscillator.frequency.linearRampToValueAtTime(800, now + 0.1);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        oscillator.start(now);
+        oscillator.stop(now + 0.1);
+        break;
+      case 'score':
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(200, now);
+        oscillator.frequency.linearRampToValueAtTime(600, now + 0.2);
+        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+        oscillator.start(now);
+        oscillator.stop(now + 0.3);
+        break;
+      case 'win':
+        // Background Fanfare
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(400, now);
+        oscillator.frequency.linearRampToValueAtTime(1000, now + 0.5);
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 1.5);
+        oscillator.start(now);
+        oscillator.stop(now + 1.5);
+        break;
+    }
   }
 
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
+  // Text To Speech for Winner (Fighting Game Style)
+  if (type === 'win' && extraData && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
 
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
+    const text = `${extraData} Wins`;
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Fighting game announcer settings
+    utterance.pitch = 0.6; // Deep voice
+    utterance.rate = 0.9;  // Slightly slow and dramatic
+    utterance.volume = 1.0;
 
-  const now = audioCtx.currentTime;
+    // Try to select an English voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find(v => v.lang.startsWith('en'));
+    if (englishVoice) {
+        utterance.voice = englishVoice;
+    }
 
-  switch (type) {
-    case 'paddle':
-      oscillator.type = 'square';
-      oscillator.frequency.setValueAtTime(400, now);
-      oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.1);
-      gainNode.gain.setValueAtTime(0.1, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-      oscillator.start(now);
-      oscillator.stop(now + 0.1);
-      break;
-    case 'wall':
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(300, now);
-      gainNode.gain.setValueAtTime(0.1, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-      oscillator.start(now);
-      oscillator.stop(now + 0.05);
-      break;
-    case 'block':
-      oscillator.type = 'triangle';
-      oscillator.frequency.setValueAtTime(600, now);
-      oscillator.frequency.linearRampToValueAtTime(800, now + 0.1);
-      gainNode.gain.setValueAtTime(0.1, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-      oscillator.start(now);
-      oscillator.stop(now + 0.1);
-      break;
-    case 'score':
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(200, now);
-      oscillator.frequency.linearRampToValueAtTime(600, now + 0.2);
-      gainNode.gain.setValueAtTime(0.2, now);
-      gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
-      oscillator.start(now);
-      oscillator.stop(now + 0.3);
-      break;
-    case 'win':
-      oscillator.type = 'sawtooth';
-      oscillator.frequency.setValueAtTime(400, now);
-      oscillator.frequency.linearRampToValueAtTime(1000, now + 0.5);
-      gainNode.gain.setValueAtTime(0.3, now);
-      gainNode.gain.linearRampToValueAtTime(0, now + 1.5);
-      oscillator.start(now);
-      oscillator.stop(now + 1.5);
-      break;
+    window.speechSynthesis.speak(utterance);
   }
 };
 
@@ -129,6 +155,11 @@ export const useGameLogic = () => {
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume().catch(() => {});
     }
+    // Pre-load voices to ensure they are ready for the win
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.getVoices();
+    }
+
     const startDir = Math.random() > 0.5 ? 1 : -1;
     setGameState(prev => ({
         ...createInitialState(mode), 
@@ -519,7 +550,7 @@ export const useGameLogic = () => {
               if (score.player1 === 0) isMasacre = true;
           }
           isGameActive = false;
-          playGameSound('win');
+          playGameSound('win', newWinner);
       }
 
       return { 
