@@ -23,8 +23,9 @@ export interface GameState {
   blocks: Block[];
   score: { player1: number; player2: number };
   isGameActive: boolean;
+  isPaused: boolean; // New pause state
   winner: string | null;
-  isMasacre: boolean; // New flag for 5-0 wins
+  isMasacre: boolean;
   ballSpeed: number;
   rallyPaddleHits: number;
   countdown: number;

@@ -4,7 +4,7 @@ export const GAME_HEIGHT = 600;
 
 export const PADDLE_WIDTH = 15;
 export const PADDLE_HEIGHT = 100;
-export const PADDLE_SPEED = 8;
+export const PADDLE_SPEED = 11; // Increased from 8 for faster movement
 
 export const BALL_SIZE = 15;
 export const INITIAL_BALL_SPEED = 7;
@@ -23,4 +23,4 @@ export const POINTS_TO_START_BLOCKS = 2; // Blocks start appearing when total sc
 export const BASE_WINNING_SCORE = 5;
 export const WIN_BY_MARGIN = 2;
 
-export const MAX_PROGRESSION_SCORE = 7; // Stop increasing difficulty after 7 total points
+export const MAX_PROGRESSION_SCORE = 5; // Stop increasing difficulty after 5 total points

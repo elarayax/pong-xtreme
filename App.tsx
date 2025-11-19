@@ -40,7 +40,7 @@ const App: React.FC = () => {
                   onClick={startGame}
                   className="px-8 py-4 bg-green-500 hover:bg-green-600 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105"
                 >
-                  Play Again
+                  Play Again (Press Space)
                 </button>
               </>
             ) : (
@@ -54,8 +54,8 @@ const App: React.FC = () => {
                 </div>
                  <p className="text-sm mt-6 text-gray-400 max-w-md">
                    First to 5 (win by 2).<br/>
-                   Speed increases every few hits.<br/>
-                   Blocks appear after 2 points.
+                   Speed increases until 5th point.<br/>
+                   <strong>Space/Enter</strong> to Start or Pause.
                  </p>
                 <button
                   onClick={startGame}

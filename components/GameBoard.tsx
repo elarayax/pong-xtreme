@@ -8,7 +8,7 @@ interface GameBoardProps {
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer } = gameState;
+  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused } = gameState;
 
   return (
     <div 
@@ -86,7 +86,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
       )}
 
       {/* Countdown Overlay */}
-      {isGameActive && !winner && countdown > 0 && (
+      {isGameActive && !winner && countdown > 0 && !isPaused && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
               <div className="text-8xl font-bold text-white animate-pulse drop-shadow-lg mb-4">
                   {countdown}
@@ -104,6 +104,15 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
                       </svg>
                   )}
               </div>
+          </div>
+      )}
+      
+      {/* Paused Overlay */}
+      {isPaused && !winner && (
+          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40">
+              <h2 className="text-6xl font-mono font-bold text-white tracking-[0.5em] animate-pulse drop-shadow-lg">
+                  PAUSED
+              </h2>
           </div>
       )}
     </div>

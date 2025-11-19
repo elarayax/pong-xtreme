@@ -98,6 +98,7 @@ const createInitialState = (): GameState => ({
   blocks: [],
   score: { player1: 0, player2: 0 },
   isGameActive: false,
+  isPaused: false,
   winner: null,
   isMasacre: false,
   ballSpeed: INITIAL_BALL_SPEED,
@@ -112,11 +113,48 @@ export const useGameLogic = () => {
   const [gameState, setGameState] = useState<GameState>(createInitialState());
   const keysPressed = useRef<Record<string, boolean>>({});
   const animationFrameId = useRef<number>();
+  
+  // Ref to access current state inside event listeners without dependencies
+  const gameStateRef = useRef(gameState);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
+  const startGame = useCallback(() => {
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+    }
+    const startDir = Math.random() > 0.5 ? 1 : -1;
+    setGameState(prev => ({
+        ...createInitialState(), 
+        isGameActive: true,
+        countdown: 3,
+        nextBallDirection: startDir
+    }));
+  }, []);
+
+  // Key Listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent scrolling with Space
+      if (e.code === 'Space') {
+          e.preventDefault();
+      }
+
       keysPressed.current[e.key] = true;
+
+      // Handle Start / Pause
+      if (e.code === 'Space' || e.code === 'Enter') {
+          const current = gameStateRef.current;
+          
+          if (!current.isGameActive || current.winner) {
+              startGame();
+          } else {
+              setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
+          }
+      }
     };
+    
     const handleKeyUp = (e: KeyboardEvent) => {
       keysPressed.current[e.key] = false;
     };
@@ -128,14 +166,16 @@ export const useGameLogic = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [startGame]);
 
   // Handle Countdown Timer
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
-    if (gameState.isGameActive && gameState.countdown > 0 && !gameState.winner) {
+    if (gameState.isGameActive && gameState.countdown > 0 && !gameState.winner && !gameState.isPaused) {
       timer = setTimeout(() => {
         setGameState((prev) => {
+          if (prev.isPaused) return prev; // Double check inside
+
           const newCount = prev.countdown - 1;
           let newBall = { ...prev.ball };
           let lastScorer = prev.lastScorer;
@@ -159,7 +199,7 @@ export const useGameLogic = () => {
       }, 1000);
     }
     return () => clearTimeout(timer);
-  }, [gameState.countdown, gameState.isGameActive, gameState.winner]);
+  }, [gameState.countdown, gameState.isGameActive, gameState.winner, gameState.isPaused]);
   
   const resetBallPosition = (direction: number) => {
      return {
@@ -170,7 +210,7 @@ export const useGameLogic = () => {
 
   const gameLoop = useCallback(() => {
     setGameState((prev) => {
-      if (!prev.isGameActive || prev.winner) return prev;
+      if (!prev.isGameActive || prev.winner || prev.isPaused) return prev;
       
       // Pause physics during countdown
       if (prev.countdown > 0) return prev;
@@ -218,7 +258,7 @@ export const useGameLogic = () => {
           return false;
       };
       
-      // Calculate total score from current state (safe as we haven't mutated score yet this frame)
+      // Calculate total score from current state
       const currentTotalScore = score.player1 + score.player2;
 
       // Paddle collision
@@ -382,8 +422,7 @@ export const useGameLogic = () => {
               while (attempt < 10 && !placed) {
                 const newY = Math.random() * (GAME_HEIGHT - BLOCK_HEIGHT);
                 // Check overlap with existing blocks
-                // Since all blocks are at the same X, we only check Y distance.
-                const isOverlapping = blocks.some(b => Math.abs(b.position.y - newY) < BLOCK_HEIGHT + 5); // 5px buffer
+                const isOverlapping = blocks.some(b => Math.abs(b.position.y - newY) < BLOCK_HEIGHT + 5);
                 
                 if (!isOverlapping) {
                     const newBlock: Block = {
@@ -451,19 +490,6 @@ export const useGameLogic = () => {
       }
     };
   }, [gameState.isGameActive, gameState.winner, gameLoop]);
-
-  const startGame = () => {
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(() => {});
-    }
-    const startDir = Math.random() > 0.5 ? 1 : -1;
-    setGameState(prev => ({
-        ...createInitialState(), 
-        isGameActive: true,
-        countdown: 3,
-        nextBallDirection: startDir
-    }));
-  };
 
   return { gameState, startGame };
 };
