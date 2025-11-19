@@ -436,8 +436,16 @@ const App: React.FC = () => {
                             </button>
                         </div>
                     ) : (
-                       <div className="mb-8 text-green-400 font-bold text-xl animate-pulse">
-                           {saveError ? 'SAVED LOCALLY ONLY' : 'SCORE UPDATED!'}
+                       <div className="mb-8 flex flex-col items-center animate-pulse">
+                           <div className={`font-bold text-xl ${saveError ? 'text-orange-400' : 'text-green-400'}`}>
+                               {saveError ? 'SAVED LOCALLY ONLY' : 'SCORE UPDATED!'}
+                           </div> 
+                           {saveError && (
+                               <div className="mt-2 text-xs text-red-300 bg-red-900/60 p-3 rounded border border-red-600 max-w-xs break-words shadow-lg select-text">
+                                   <strong>Error:</strong> {saveError}
+                                   <div className="mt-1 text-[10px] text-gray-400">Check API Key/Bin ID</div>
+                               </div>
+                           )}
                        </div> 
                     )}
                     

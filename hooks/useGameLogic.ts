@@ -24,23 +24,32 @@ import {
   MAX_BALL_SPEED,
 } from '../constants';
 
-// Sound Utility
-const audioCtx = typeof window !== 'undefined' ? new (window.AudioContext || (window as any).webkitAudioContext)() : null;
+// Sound Utility - Lazy Initialization
+let audioCtx: AudioContext | null = null;
+
+const getAudioContext = () => {
+    if (!audioCtx && typeof window !== 'undefined') {
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return audioCtx;
+};
 
 const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win', extraData?: string) => {
+  const ctx = getAudioContext();
+  
   // Audio Context for SFX
-  if (audioCtx) {
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
+  if (ctx) {
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
     }
 
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
     oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    gainNode.connect(ctx.destination);
 
-    const now = audioCtx.currentTime;
+    const now = ctx.currentTime;
 
     switch (type) {
       case 'paddle':
@@ -154,8 +163,9 @@ export const useGameLogic = () => {
   }, [gameState]);
 
   const startGame = useCallback((mode: GameMode = 'classic', p1Name: string, p2Name: string) => {
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(() => {});
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
     }
     // Pre-load voices to ensure they are ready for the win
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -187,8 +197,6 @@ export const useGameLogic = () => {
           
           if (!current.isGameActive || current.winner) {
               // We don't auto-restart here anymore because we need the name inputs
-              // Just ignore or maybe trigger the default start if names are set?
-              // For now, let's strictly use the UI buttons for start to capture names properly.
           } else {
               setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
           }
@@ -562,7 +570,7 @@ export const useGameLogic = () => {
           blocks, 
           score, 
           winner: newWinner, 
-          isMasacre,
+          isMasacre, 
           isGameActive, 
           ballSpeed: newBallSpeed,
           rallyPaddleHits,
