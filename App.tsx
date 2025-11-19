@@ -105,8 +105,16 @@ const LeaderboardService = {
     // 3. Save Cloud
     if (this.isCloudConfigured()) {
       try {
-        // We wrap in "users" to match the user's preferred structure format if they wish.
-        const payload = { users: updatedList };
+        // Map 'name' to 'user' to match the user's requested structure
+        const payload = { 
+            users: updatedList.map(entry => ({
+                user: entry.name,  // Rename 'name' to 'user' for JSONBin
+                score: entry.score,
+                mode: entry.mode,
+                isMasacre: entry.isMasacre,
+                date: entry.date
+            })) 
+        };
 
         const response = await fetch(this.getUrl(), {
           method: 'PUT',

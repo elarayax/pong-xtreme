@@ -34,7 +34,7 @@ const getAudioContext = () => {
     return audioCtx;
 };
 
-const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win', extraData?: string) => {
+const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre', extraData?: string) => {
   const ctx = getAudioContext();
   
   // Audio Context for SFX
@@ -88,40 +88,52 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win', extr
         oscillator.stop(now + 0.3);
         break;
       case 'win':
+      case 'masacre':
         // Silence the synth fanfare, only voice will play below
         break;
     }
   }
 
   // Text To Speech for Winner (Fighting Game Style)
-  // LOUDER VERSION: Using a "Chorus" effect by layering two voices
-  if (type === 'win' && extraData && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  if ((type === 'win' || type === 'masacre') && typeof window !== 'undefined' && 'speechSynthesis' in window) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
-    const text = `${extraData} Wins`;
-    
-    // Try to select an English voice if available
     const voices = window.speechSynthesis.getVoices();
     const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
 
-    // Voice 1: Main Deep Voice
-    const u1 = new SpeechSynthesisUtterance(text);
-    u1.pitch = 0.6; 
-    u1.rate = 0.8;
-    u1.volume = 1.0; // Max volume
-    if (englishVoice) u1.voice = englishVoice;
+    if (type === 'masacre') {
+        // MASACRE LOGIC: No Chorus, Deep, Aggressive, Distinct Text
+        const text = "MASACRE!";
+        const u1 = new SpeechSynthesisUtterance(text);
+        u1.pitch = 0.4; // Very deep
+        u1.rate = 0.9;
+        u1.volume = 1.0;
+        if (englishVoice) u1.voice = englishVoice;
+        window.speechSynthesis.speak(u1);
 
-    // Voice 2: Slightly Higher Pitch (Creates "Stadium" effect and perceived loudness)
-    const u2 = new SpeechSynthesisUtterance(text);
-    u2.pitch = 0.7; 
-    u2.rate = 0.8; 
-    u2.volume = 1.0; // Max volume
-    if (englishVoice) u2.voice = englishVoice;
+    } else {
+        // NORMAL WIN LOGIC: Chorus Effect
+        const text = `${extraData} Wins`;
+        
+        // Voice 1: Main Deep Voice
+        const u1 = new SpeechSynthesisUtterance(text);
+        u1.pitch = 0.6; 
+        u1.rate = 0.8;
+        u1.volume = 1.0;
+        if (englishVoice) u1.voice = englishVoice;
 
-    // Play simultaneous(ish)
-    window.speechSynthesis.speak(u1);
-    window.speechSynthesis.speak(u2);
+        // Voice 2: Slightly Higher Pitch (Chorus)
+        const u2 = new SpeechSynthesisUtterance(text);
+        u2.pitch = 0.7; 
+        u2.rate = 0.8; 
+        u2.volume = 1.0;
+        if (englishVoice) u2.voice = englishVoice;
+
+        // Play simultaneous
+        window.speechSynthesis.speak(u1);
+        window.speechSynthesis.speak(u2);
+    }
   }
 };
 
@@ -560,7 +572,12 @@ export const useGameLogic = () => {
               if (score.player1 === 0) isMasacre = true;
           }
           isGameActive = false;
-          playGameSound('win', newWinner);
+          
+          if (isMasacre) {
+              playGameSound('masacre', newWinner);
+          } else {
+              playGameSound('win', newWinner);
+          }
       }
 
       return { 
