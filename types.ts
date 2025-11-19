@@ -23,7 +23,7 @@ export interface GameState {
   blocks: Block[];
   score: { player1: number; player2: number };
   isGameActive: boolean;
-  isPaused: boolean; // New pause state
+  isPaused: boolean;
   winner: string | null;
   isMasacre: boolean;
   ballSpeed: number;
@@ -32,4 +32,5 @@ export interface GameState {
   nextBallDirection: number;
   lastScorer: string | null;
   consecutiveStraightHits: number;
+  boardRotation: number; // New rotation state
 }

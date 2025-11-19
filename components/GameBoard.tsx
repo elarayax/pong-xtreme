@@ -8,12 +8,16 @@ interface GameBoardProps {
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused } = gameState;
+  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation } = gameState;
 
   return (
     <div 
-      className="relative bg-black border-4 border-gray-600 shadow-2xl overflow-hidden"
-      style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
+      className="relative bg-black border-4 border-gray-600 shadow-2xl overflow-hidden transition-transform duration-300 ease-out"
+      style={{ 
+        width: GAME_WIDTH, 
+        height: GAME_HEIGHT,
+        transform: `rotate(${boardRotation}deg)` 
+      }}
     >
       {/* Center Line */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-full">
@@ -75,7 +79,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
 
       {/* Scored Point Overlay */}
       {lastScorer && !winner && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none" style={{ transform: `rotate(${-boardRotation}deg)` }}>
               <h2 className="text-6xl font-black text-yellow-400 animate-bounce drop-shadow-xl uppercase tracking-widest">
                   POINT!
               </h2>
@@ -87,7 +91,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
 
       {/* Countdown Overlay */}
       {isGameActive && !winner && countdown > 0 && !isPaused && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20" style={{ transform: `rotate(${-boardRotation}deg)` }}>
               <div className="text-8xl font-bold text-white animate-pulse drop-shadow-lg mb-4">
                   {countdown}
               </div>
@@ -109,7 +113,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
       
       {/* Paused Overlay */}
       {isPaused && !winner && (
-          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40">
+          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40" style={{ transform: `rotate(${-boardRotation}deg)` }}>
               <h2 className="text-6xl font-mono font-bold text-white tracking-[0.5em] animate-pulse drop-shadow-lg">
                   PAUSED
               </h2>

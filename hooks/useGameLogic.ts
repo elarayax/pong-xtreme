@@ -109,6 +109,7 @@ const createInitialState = (): GameState => ({
   nextBallDirection: 0,
   lastScorer: null,
   consecutiveStraightHits: 0,
+  boardRotation: 0,
 });
 
 export const useGameLogic = () => {
@@ -227,6 +228,7 @@ export const useGameLogic = () => {
       let newBallSpeed = prev.ballSpeed;
       let rallyPaddleHits = prev.rallyPaddleHits;
       let newConsecutiveStraightHits = prev.consecutiveStraightHits;
+      let newBoardRotation = prev.boardRotation;
 
       // Move paddles
       if (keysPressed.current['w']) {
@@ -276,6 +278,9 @@ export const useGameLogic = () => {
           return false;
       };
       
+      // Check for Deuce State (4-4 or higher) to trigger rotation
+      const isDeuce = score.player1 >= BASE_WINNING_SCORE - 1 && score.player2 >= BASE_WINNING_SCORE - 1;
+
       // Calculate total score from current state
       const currentTotalScore = score.player1 + score.player2;
 
@@ -318,6 +323,11 @@ export const useGameLogic = () => {
              bounceAngle = direction * 0.35; // Force ~20 degrees
              newConsecutiveStraightHits = 0;
         }
+        
+        // Rotate Board in Deuce
+        if (isDeuce) {
+            newBoardRotation += (Math.random() * 8 - 4); // Random rotation between -4 and 4 degrees
+        }
 
         ball.velocity.x = newBallSpeed * Math.cos(bounceAngle);
         ball.velocity.y = newBallSpeed * -Math.sin(bounceAngle);
@@ -350,6 +360,11 @@ export const useGameLogic = () => {
              const direction = Math.random() > 0.5 ? 1 : -1;
              bounceAngle = direction * 0.35; // Force ~20 degrees
              newConsecutiveStraightHits = 0;
+        }
+        
+        // Rotate Board in Deuce
+        if (isDeuce) {
+            newBoardRotation += (Math.random() * 8 - 4); // Random rotation between -4 and 4 degrees
         }
 
         ball.velocity.x = -newBallSpeed * Math.cos(bounceAngle);
@@ -401,6 +416,7 @@ export const useGameLogic = () => {
         
         rallyPaddleHits = 0;
         newConsecutiveStraightHits = 0;
+        newBoardRotation = 0; // Reset rotation
         ball = resetBallPosition(1);
         newCountdown = 3;
         newDirection = 1;
@@ -417,6 +433,7 @@ export const useGameLogic = () => {
 
         rallyPaddleHits = 0;
         newConsecutiveStraightHits = 0;
+        newBoardRotation = 0; // Reset rotation
         ball = resetBallPosition(-1);
         newCountdown = 3;
         newDirection = -1;
@@ -508,7 +525,8 @@ export const useGameLogic = () => {
           countdown: newCountdown,
           nextBallDirection: newDirection,
           lastScorer,
-          consecutiveStraightHits: newConsecutiveStraightHits
+          consecutiveStraightHits: newConsecutiveStraightHits,
+          boardRotation: newBoardRotation
       };
     });
   }, []);
