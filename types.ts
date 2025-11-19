@@ -30,4 +30,5 @@ export interface GameState {
   countdown: number;
   nextBallDirection: number;
   lastScorer: string | null;
+  consecutiveStraightHits: number;
 }

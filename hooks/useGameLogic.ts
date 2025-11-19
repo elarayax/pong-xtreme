@@ -105,6 +105,7 @@ const createInitialState = (): GameState => ({
   countdown: 0,
   nextBallDirection: 0,
   lastScorer: null,
+  consecutiveStraightHits: 0,
 });
 
 export const useGameLogic = () => {
@@ -177,6 +178,7 @@ export const useGameLogic = () => {
       let { paddles, ball, blocks, score } = JSON.parse(JSON.stringify(prev));
       let newBallSpeed = prev.ballSpeed;
       let rallyPaddleHits = prev.rallyPaddleHits;
+      let newConsecutiveStraightHits = prev.consecutiveStraightHits;
 
       // Move paddles
       if (keysPressed.current['w']) {
@@ -238,8 +240,22 @@ export const useGameLogic = () => {
 
         const relativeIntersectY = (paddles.left.y + PADDLE_HEIGHT / 2) - ball.position.y;
         const normalizedIntersectY = relativeIntersectY / (PADDLE_HEIGHT / 2);
-        const bounceAngle = normalizedIntersectY * MAX_BOUNCE_ANGLE;
+        let bounceAngle = normalizedIntersectY * MAX_BOUNCE_ANGLE;
         
+        // Anti-stuck logic
+        if (Math.abs(bounceAngle) < 0.1) {
+            newConsecutiveStraightHits++;
+        } else {
+            newConsecutiveStraightHits = 0;
+        }
+
+        if (newConsecutiveStraightHits >= 4) {
+             // Force deflection
+             const direction = Math.random() > 0.5 ? 1 : -1;
+             bounceAngle = direction * 0.35; // Force ~20 degrees
+             newConsecutiveStraightHits = 0;
+        }
+
         ball.velocity.x = newBallSpeed * Math.cos(bounceAngle);
         ball.velocity.y = newBallSpeed * -Math.sin(bounceAngle);
         playGameSound('paddle');
@@ -252,8 +268,22 @@ export const useGameLogic = () => {
 
         const relativeIntersectY = (paddles.right.y + PADDLE_HEIGHT / 2) - ball.position.y;
         const normalizedIntersectY = relativeIntersectY / (PADDLE_HEIGHT / 2);
-        const bounceAngle = normalizedIntersectY * MAX_BOUNCE_ANGLE;
+        let bounceAngle = normalizedIntersectY * MAX_BOUNCE_ANGLE;
         
+        // Anti-stuck logic
+        if (Math.abs(bounceAngle) < 0.1) {
+            newConsecutiveStraightHits++;
+        } else {
+            newConsecutiveStraightHits = 0;
+        }
+
+        if (newConsecutiveStraightHits >= 4) {
+             // Force deflection
+             const direction = Math.random() > 0.5 ? 1 : -1;
+             bounceAngle = direction * 0.35; // Force ~20 degrees
+             newConsecutiveStraightHits = 0;
+        }
+
         ball.velocity.x = -newBallSpeed * Math.cos(bounceAngle);
         ball.velocity.y = newBallSpeed * -Math.sin(bounceAngle);
         playGameSound('paddle');
@@ -296,7 +326,8 @@ export const useGameLogic = () => {
         if ((score.player1 + score.player2) < MAX_PROGRESSION_SCORE) {
            newBallSpeed += BALL_SPEED_INCREMENT; 
         }
-        rallyPaddleHits = 0; 
+        rallyPaddleHits = 0;
+        newConsecutiveStraightHits = 0;
         ball = resetBallPosition(1);
         newCountdown = 3;
         newDirection = 1;
@@ -310,6 +341,7 @@ export const useGameLogic = () => {
             newBallSpeed += BALL_SPEED_INCREMENT;
         }
         rallyPaddleHits = 0;
+        newConsecutiveStraightHits = 0;
         ball = resetBallPosition(-1);
         newCountdown = 3;
         newDirection = -1;
@@ -398,7 +430,8 @@ export const useGameLogic = () => {
           rallyPaddleHits,
           countdown: newCountdown,
           nextBallDirection: newDirection,
-          lastScorer
+          lastScorer,
+          consecutiveStraightHits: newConsecutiveStraightHits
       };
     });
   }, []);
