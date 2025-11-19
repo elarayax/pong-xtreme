@@ -11,7 +11,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 font-mono">
       <header className="text-center mb-4">
         <h1 className="text-4xl md:text-6xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-red-400">
-          PONG BLOCKS
+          PONG XTREME
         </h1>
         <p className="text-gray-400 mt-2">A classic with a chaotic twist.</p>
       </header>
