@@ -6,15 +6,16 @@ import { useGameLogic } from './hooks/useGameLogic';
 import { LeaderboardEntry } from './types';
 
 // --- CONFIGURATION FOR GLOBAL LEADERBOARD ---
-// Since Vercel is read-only, we cannot write to a local JSON file.
-// We use JSONBin.io to store the leaderboard globally.
-// 1. Go to jsonbin.io and create a new bin.
-// 2. In the JSON editor, you can paste this to start (avoids "Bin cannot be blank"):
-//    { "users": [] }
-// 3. Paste your Bin ID and X-Master-Key below.
-// If these are empty, the game automatically uses localStorage (offline mode).
-const JSONBIN_BIN_ID = ''; // e.g., '67b8e...'
-const JSONBIN_API_KEY = ''; // e.g., '$2a$10$...'
+// SECURITY UPDATE: We now use Environment Variables.
+// 1. In Vercel (Settings -> Environment Variables), add:
+//    REACT_APP_JSONBIN_BIN_ID
+//    REACT_APP_JSONBIN_API_KEY
+// 2. Locally, create a .env file with these keys.
+// 
+// NOTE: If these are missing, the game gracefully falls back to LocalStorage.
+
+const JSONBIN_BIN_ID = process.env.REACT_APP_JSONBIN_BIN_ID || '';
+const JSONBIN_API_KEY = process.env.REACT_APP_JSONBIN_API_KEY || '';
 
 const LOCAL_STORAGE_KEY = 'pongXtremeLeaderboard';
 
