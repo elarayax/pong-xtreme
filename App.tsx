@@ -7,40 +7,36 @@ import { LeaderboardEntry, GameMode } from './types';
 import { GAME_WIDTH, GAME_HEIGHT } from './constants';
 
 // --- CONFIGURATION FOR GLOBAL LEADERBOARD ---
-// SECURITY UPDATE: Vite & Vercel Support
-// 1. In Vercel, rename your variables to start with VITE_ (e.g., VITE_JSONBIN_BIN_ID)
-// 2. This code now prioritizes import.meta.env (Vite standard)
+// CRITICAL FIX: Explicit access to variables is required for Vite to bundle them correctly.
+// Dynamic access (e.g. env[key]) fails in production builds.
 
-const getEnvVar = (key: string) => {
-    // 1. Try Vite Standard (import.meta.env) - Priority
-    // Vite only exposes variables prefixed with VITE_ to the client for security.
+const getEnvConfig = () => {
+    let binId = '';
+    let apiKey = '';
+
+    // 1. Try Vite (import.meta.env) - EXPLICIT ACCESS
     try {
         if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-            const viteKey = `VITE_${key}`;
-            const val = (import.meta as any).env[viteKey];
-            if (val) return val;
+            // We must access these properties directly for Vite's define replacement to work
+            binId = (import.meta as any).env.VITE_JSONBIN_BIN_ID || '';
+            apiKey = (import.meta as any).env.VITE_JSONBIN_API_KEY || '';
         }
-    } catch (e) {
-        // Ignore errors if import.meta is not supported in environment
+    } catch (e) {}
+
+    // 2. Fallback to process.env (CRA/Node) - EXPLICIT ACCESS
+    if (!binId || !apiKey) {
+        try {
+            if (typeof process !== 'undefined' && process.env) {
+                binId = binId || process.env.REACT_APP_JSONBIN_BIN_ID || process.env.VITE_JSONBIN_BIN_ID || '';
+                apiKey = apiKey || process.env.REACT_APP_JSONBIN_API_KEY || process.env.VITE_JSONBIN_API_KEY || '';
+            }
+        } catch (e) {}
     }
 
-    // 2. Try CRA / Node Standard (process.env)
-    // Fallback for older setups
-    try {
-        if (typeof process !== 'undefined' && process.env) {
-            const reactKey = `REACT_APP_${key}`;
-            if (process.env[reactKey]) return process.env[reactKey];
-            if (process.env[key]) return process.env[key];
-        }
-    } catch (e) {
-        // Ignore reference errors
-    }
-    
-    return '';
+    return { binId, apiKey };
 };
 
-const JSONBIN_BIN_ID = getEnvVar('JSONBIN_BIN_ID') || '';
-const JSONBIN_API_KEY = getEnvVar('JSONBIN_API_KEY') || '';
+const { binId: JSONBIN_BIN_ID, apiKey: JSONBIN_API_KEY } = getEnvConfig();
 
 const LOCAL_STORAGE_KEY = 'pongXtremeLeaderboard';
 
