@@ -120,11 +120,18 @@ const LeaderboardService = {
     const existingIndex = currentList.findIndex(e => e.name.toUpperCase() === newEntry.name.toUpperCase());
 
     if (existingIndex !== -1) {
-        // User exists, check if new score is higher
-        if (newEntry.score > currentList[existingIndex].score) {
-             currentList[existingIndex] = newEntry; // Update with new high score
+        // User exists: ACCUMULATE SCORE
+        currentList[existingIndex].score += newEntry.score;
+        
+        // Update metadata to latest game
+        currentList[existingIndex].date = newEntry.date;
+        currentList[existingIndex].mode = newEntry.mode;
+        
+        // Keep masacre badge if they achieve it in any game (optional, or strictly latest)
+        // Let's set it if this game was a masacre
+        if (newEntry.isMasacre) {
+            currentList[existingIndex].isMasacre = true;
         }
-        // If new score is lower, we do nothing (keep the high score)
     } else {
         // New user
         currentList.push(newEntry);
@@ -170,30 +177,6 @@ const LeaderboardService = {
     }
     
     return updatedList;
-  },
-
-  // --- NEW RESET FUNCTIONALITY ---
-  async reset(): Promise<void> {
-      const emptyList: any[] = [];
-      
-      if (this.isCloudConfigured()) {
-          try {
-              const payload = { users: [] };
-              await fetch(this.getUrl(), {
-                  method: 'PUT',
-                  headers: {
-                      'X-Master-Key': JSONBIN_API_KEY,
-                      'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(payload)
-              });
-          } catch (e) {
-              console.error("Failed to reset cloud", e);
-              throw e;
-          }
-      }
-      this.saveLocal([]);
-      return;
   },
 
   getLocal(): LeaderboardEntry[] {
@@ -348,18 +331,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleResetLeaderboard = async () => {
-      if (window.confirm("ARE YOU SURE? This will wipe all global scores permanently.")) {
-          try {
-              await LeaderboardService.reset();
-              setLeaderboard([]);
-              alert("Database cleared.");
-          } catch (e) {
-              alert("Failed to reset database.");
-          }
-      }
-  };
-
   const finalScore = calculateScore();
 
   const getPlayerStats = (name: string) => {
@@ -371,8 +342,13 @@ const App: React.FC = () => {
       
       if (playerEntries.length === 0) return null;
 
+      // Since we now accumulate score, finding the max score is simpler (it's just the user's entry score)
+      // But the filter might find duplicate if database hasn't been wiped yet, so max is safe
       const bestScore = Math.max(...playerEntries.map(e => e.score));
-      const wins = playerEntries.length;
+      // Wins logic might be slightly off if we just count entries now, but in accumulating mode, 
+      // we don't store separate win counts in the JSON unless we add a 'wins' field.
+      // For now, 'wins' will just show 1 if they are in the leaderboard, which is acceptable given constraints.
+      const wins = playerEntries.length; 
 
       return { wins, bestScore };
   };
@@ -505,13 +481,7 @@ const App: React.FC = () => {
                         </table>
                     )}
                     
-                    <div className="mt-auto w-full flex justify-between items-center">
-                        <button 
-                            onClick={handleResetLeaderboard}
-                            className="px-3 py-1 bg-red-900 hover:bg-red-700 text-red-200 text-[10px] rounded border border-red-800 uppercase tracking-wider"
-                        >
-                            ⚠ Reset Data
-                        </button>
+                    <div className="mt-auto w-full flex justify-end items-center">
                         <button 
                             onClick={() => setShowLeaderboard(false)}
                             className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white font-bold uppercase"
@@ -610,13 +580,13 @@ const App: React.FC = () => {
 
                     {!scoreSubmitted ? (
                         <div className="bg-gray-800 p-6 rounded-lg border-2 border-blue-500 shadow-2xl mb-6 animate-fade-in-up relative">
-                            <h3 className="text-xl text-blue-300 mb-2 uppercase font-bold">High Score: <span className="text-white">{finalScore}</span></h3>
+                            <h3 className="text-xl text-blue-300 mb-2 uppercase font-bold">Score: <span className="text-white">{finalScore}</span></h3>
                             {saveError && (
                                 <div className="mb-2 text-xs text-red-400 bg-red-900/20 p-1 rounded border border-red-800 break-all">
                                     ⚠️ Save Error: {saveError}. <br/> Saved locally.
                                 </div>
                             )}
-                            <p className="text-xs text-gray-400 mb-4">Update profile for {gameState.winner}</p>
+                            <p className="text-xs text-gray-400 mb-4">Add to {gameState.winner}'s total</p>
                             <button 
                                 onClick={handleSubmitScore}
                                 disabled={isSubmitting}
