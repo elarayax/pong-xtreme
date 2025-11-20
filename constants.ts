@@ -61,7 +61,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-gray-900', 
     border: 'border-yellow-500', 
     glow: 'shadow-yellow-600',
-    img: 'https://upload.wikimedia.org/wikipedia/en/1/17/Batman-BenAffleck.jpg'
+    img: 'https://pngdownload.io/wp-content/uploads/2024/04/Batman-DC-Comics-superhero-transparent-PNG-image-768x576.webp'
   },
   superman: { 
     name: 'Man of Steel', 
@@ -93,7 +93,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-yellow-400', 
     border: 'border-orange-600', 
     glow: 'shadow-yellow-300',
-    img: 'https://upload.wikimedia.org/wikipedia/en/3/31/Goku-character_profile.png' 
+    img: 'https://dthezntil550i.cloudfront.net/1z/latest/1z2106291344089220021176382/b00102ec-5608-4117-a0bb-09fbf3e31268.png' 
   },
   mando: { 
     name: 'Mandalorian', 
@@ -117,6 +117,6 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-purple-100',
     border: 'border-purple-600',
     glow: 'shadow-purple-300',
-    img: 'https://upload.wikimedia.org/wikipedia/en/3/36/Emilia_Re_Zero_anime.png'
+    img: 'https://static.wikia.nocookie.net/rezero/images/c/c3/Emilia_Memory_Snow_Design.png'
   }
 };

@@ -330,6 +330,24 @@ const App: React.FC = () => {
   const p1Stats = getPlayerStats(player1Name);
   const p2Stats = getPlayerStats(player2Name);
 
+  // --- LOGIC FOR SIDE CHARACTERS ---
+  const getSkinImage = (skinKey: SkinType) => {
+      const skin = AVAILABLE_SKINS[skinKey as keyof typeof AVAILABLE_SKINS];
+      return skin ? skin.img : null;
+  };
+
+  const leftSkinImg = getSkinImage(gameState.skins.player1);
+  const rightSkinImg = getSkinImage(gameState.skins.player2);
+
+  // Show character if they scored last point OR if they won the game
+  // Player 1 (Left)
+  const showLeftChar = (gameState.lastScorerId === 'player1' && !gameState.winner) || 
+                       (gameState.winner === gameState.playerNames.player1);
+  
+  // Player 2 (Right)
+  const showRightChar = (gameState.lastScorerId === 'player2' && !gameState.winner) || 
+                        (gameState.winner === gameState.playerNames.player2);
+
   return (
     <div className="h-full w-full bg-gray-900 text-white flex flex-col items-center font-mono overflow-hidden">
       <header className="shrink-0 w-full flex flex-col items-center justify-center py-2 relative z-10 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800">
@@ -353,13 +371,26 @@ const App: React.FC = () => {
       </div>
 
       <div ref={containerRef} className="flex-1 w-full flex items-center justify-center relative overflow-hidden p-2">
+         {/* SIDE CHARACTER IMAGES (Outside Board) */}
+         {showLeftChar && leftSkinImg && (
+             <div className="absolute left-0 bottom-0 z-20 h-full max-h-[90%] w-1/3 pointer-events-none flex items-end justify-start animate-fade-in-right transition-opacity duration-500">
+                 <img src={leftSkinImg} alt="P1 Character" className="max-h-full object-contain drop-shadow-[0_0_25px_rgba(59,130,246,0.6)]" />
+             </div>
+         )}
+
+         {showRightChar && rightSkinImg && (
+             <div className="absolute right-0 bottom-0 z-20 h-full max-h-[90%] w-1/3 pointer-events-none flex items-end justify-end animate-fade-in-left transition-opacity duration-500">
+                 <img src={rightSkinImg} alt="P2 Character" className="max-h-full object-contain drop-shadow-[0_0_25px_rgba(248,113,113,0.6)]" />
+             </div>
+         )}
+
          <div 
             style={{ 
                 width: GAME_WIDTH, 
                 height: GAME_HEIGHT,
                 transform: `scale(${gameScale})`,
             }}
-            className="relative shadow-2xl origin-center"
+            className="relative shadow-2xl origin-center z-30"
          >
             <GameBoard gameState={gameState} />
             
