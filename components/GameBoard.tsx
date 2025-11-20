@@ -8,7 +8,7 @@ interface GameBoardProps {
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation } = gameState;
+  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation, isNoScope } = gameState;
 
   return (
     <div 
@@ -80,9 +80,18 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
       {/* Scored Point Overlay */}
       {lastScorer && !winner && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none" style={{ transform: `rotate(${-boardRotation}deg)` }}>
-              <h2 className="text-6xl font-black text-yellow-400 animate-bounce drop-shadow-xl uppercase tracking-widest">
-                  POINT!
-              </h2>
+              {isNoScope ? (
+                   <div className="mb-4 animate-ping">
+                       <h2 className="text-7xl font-black text-red-500 italic drop-shadow-[0_5px_5px_rgba(0,0,0,1)]" style={{ WebkitTextStroke: '2px white' }}>
+                           NO SCOPE!
+                       </h2>
+                   </div>
+              ) : (
+                  <h2 className="text-6xl font-black text-yellow-400 animate-bounce drop-shadow-xl uppercase tracking-widest">
+                      POINT!
+                  </h2>
+              )}
+              
               <p className="text-2xl text-white font-bold mt-2 animate-pulse">
                   {lastScorer} scored
               </p>

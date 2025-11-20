@@ -29,6 +29,8 @@ export interface GameState {
   isPaused: boolean;
   winner: string | null;
   isMasacre: boolean;
+  isDramaticFinish: boolean; // New: For DBZ style finish
+  isNoScope: boolean; // New: For trick shots
   ballSpeed: number;
   rallyPaddleHits: number;
   countdown: number;
@@ -37,6 +39,8 @@ export interface GameState {
   consecutiveStraightHits: number;
   boardRotation: number;
   mode: GameMode;
+  lastHitter: 'player1' | 'player2' | null; // Track who hit ball last for No Scope
+  currentPointWallHits: number; // Track bounces for No Scope
 }
 
 export interface LeaderboardEntry {

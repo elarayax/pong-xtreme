@@ -369,11 +369,6 @@ const App: React.FC = () => {
   const p1Stats = getPlayerStats(player1Name);
   const p2Stats = getPlayerStats(player2Name);
 
-  // Diagnostics Checks
-  const isKeyFormatValid = JSONBIN_API_KEY.startsWith('$2a$');
-  const isDuplicate = JSONBIN_BIN_ID === JSONBIN_API_KEY && JSONBIN_BIN_ID.length > 0;
-  const apiKeyPreview = JSONBIN_API_KEY.length > 4 ? JSONBIN_API_KEY.substring(0, 4) + '...' : 'Empty';
-
   return (
     <div className="h-full w-full bg-gray-900 text-white flex flex-col items-center font-mono overflow-hidden">
       {/* Header Area */}
@@ -418,7 +413,7 @@ const App: React.FC = () => {
                         HALL OF FAME
                     </h2>
                     
-                    {/* CONNECTION DIAGNOSTICS */}
+                    {/* CONNECTION DIAGNOSTICS - SIMPLIFIED */}
                     <div className="w-full mb-4 p-2 rounded border text-xs flex flex-col gap-2 bg-gray-800 border-gray-700">
                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -432,33 +427,10 @@ const App: React.FC = () => {
                                 )}
                             </div>
                          </div>
-                         
-                         {/* DETAILED DEBUG INFO */}
-                         {connectionStatus.type !== 'local' && (
-                            <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-gray-700 pt-2">
-                                <div className="flex flex-col">
-                                    <span className="text-gray-500">BIN ID:</span>
-                                    <span className="font-mono text-gray-300">{JSONBIN_BIN_ID.substring(0,6)}...</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-gray-500">API KEY START:</span>
-                                    <span className={`font-mono ${isKeyFormatValid ? 'text-green-400' : 'text-red-400'}`}>
-                                        {apiKeyPreview}
-                                    </span>
-                                    {!isKeyFormatValid && <span className="text-red-500 font-bold">⚠️ Invalid Format (Must start with $2a$)</span>}
-                                    {isDuplicate && <span className="text-red-500 font-bold">⚠️ DUPLICATE VALUES</span>}
-                                </div>
-                            </div>
-                         )}
                     </div>
                     {connectionStatus.error && (
                         <div className="w-full mb-4 p-2 bg-red-900/50 border border-red-500 text-red-200 text-xs rounded break-all">
                             <strong>Error:</strong> {connectionStatus.error}
-                            {connectionStatus.error.includes('401') && (
-                                <div className="mt-1 text-yellow-200 font-bold">
-                                    💡 FIX: Your API Key is wrong. Check Vercel env vars.
-                                </div>
-                            )}
                         </div>
                     )}
 
@@ -518,9 +490,21 @@ const App: React.FC = () => {
                           </h2>
                           <p className="text-3xl text-red-500 font-bold mt-2 uppercase tracking-widest">Perfection</p>
                        </div>
+                    ) : gameState.isDramaticFinish ? (
+                        <div className="mb-4">
+                           <h2 className="text-7xl font-black text-black drop-shadow-[0_5px_0_rgba(255,215,0,1)]" 
+                               style={{ 
+                                   fontFamily: '"Bangers", system-ui', 
+                                   WebkitTextStroke: '2px #FCD34D', // Yellow stroke
+                                   letterSpacing: '4px'
+                               }}>
+                             DRAMATIC FINISH
+                           </h2>
+                        </div>
                     ) : (
                        <h2 className="text-5xl font-bold text-yellow-400 mb-4" style={{ fontFamily: '"Bangers", system-ui', letterSpacing: '2px' }}>GAME OVER</h2>
                     )}
+                    
                     <p className="text-6xl mb-4 text-transparent bg-clip-text bg-gradient-to-t from-gray-300 to-white drop-shadow-lg uppercase" style={{ fontFamily: '"Bangers", system-ui' }}>
                         {gameState.winner} wins!
                     </p>
@@ -575,6 +559,7 @@ const App: React.FC = () => {
                                    type="text"
                                    value={player1Name}
                                    onChange={(e) => setPlayer1Name(e.target.value)}
+                                   onFocus={(e) => e.target.select()} // Auto-select text on focus
                                    placeholder="PLAYER 1"
                                    maxLength={10}
                                    className="w-full bg-gray-800 border-2 border-blue-500 text-blue-300 text-center font-bold py-2 rounded uppercase focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-blue-800"
@@ -592,6 +577,7 @@ const App: React.FC = () => {
                                    type="text"
                                    value={player2Name}
                                    onChange={(e) => setPlayer2Name(e.target.value)}
+                                   onFocus={(e) => e.target.select()} // Auto-select text on focus
                                    placeholder="PLAYER 2"
                                    maxLength={10}
                                    className="w-full bg-gray-800 border-2 border-red-500 text-red-300 text-center font-bold py-2 rounded uppercase focus:outline-none focus:ring-2 focus:ring-red-400 placeholder-red-800"

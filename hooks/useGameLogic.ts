@@ -34,7 +34,7 @@ const getAudioContext = () => {
     return audioCtx;
 };
 
-const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre', extraData?: string) => {
+const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre' | 'noscope' | 'dramatic', extraData?: string) => {
   const ctx = getAudioContext();
   
   // Audio Context for SFX
@@ -89,13 +89,15 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         break;
       case 'win':
       case 'masacre':
+      case 'noscope':
+      case 'dramatic':
         // Silence the synth fanfare, only voice will play below
         break;
     }
   }
 
   // Text To Speech for Winner (Fighting Game Style)
-  if ((type === 'win' || type === 'masacre') && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  if ((type === 'win' || type === 'masacre' || type === 'noscope' || type === 'dramatic') && typeof window !== 'undefined' && 'speechSynthesis' in window) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
@@ -103,7 +105,7 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
     const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
 
     if (type === 'masacre') {
-        // MASACRE LOGIC: No Chorus, Deep, Aggressive, Distinct Text
+        // MASACRE LOGIC: No Chorus, Deep, Aggressive
         const text = "MASACRE!";
         const u1 = new SpeechSynthesisUtterance(text);
         u1.pitch = 0.4; // Very deep
@@ -112,27 +114,35 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         if (englishVoice) u1.voice = englishVoice;
         window.speechSynthesis.speak(u1);
 
-    } else {
-        // NORMAL WIN LOGIC: Chorus Effect
-        const text = `${extraData} Wins`;
-        
-        // Voice 1: Main Deep Voice
+    } else if (type === 'dramatic') {
+        // DRAMATIC FINISH LOGIC
+        const text = "DRAMATIC FINISH!";
         const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 0.6; 
-        u1.rate = 0.8;
+        u1.pitch = 0.2; // Deepest
+        u1.rate = 0.6; // Slow
         u1.volume = 1.0;
         if (englishVoice) u1.voice = englishVoice;
-
-        // Voice 2: Slightly Higher Pitch (Chorus)
-        const u2 = new SpeechSynthesisUtterance(text);
-        u2.pitch = 0.7; 
-        u2.rate = 0.8; 
-        u2.volume = 1.0;
-        if (englishVoice) u2.voice = englishVoice;
-
-        // Play simultaneous
         window.speechSynthesis.speak(u1);
-        window.speechSynthesis.speak(u2);
+
+    } else if (type === 'noscope') {
+        // NO SCOPE LOGIC: High pitch, excited
+        const text = "NO SCOPE!";
+        const u1 = new SpeechSynthesisUtterance(text);
+        u1.pitch = 1.5; 
+        u1.rate = 1.2;
+        u1.volume = 1.0;
+        if (englishVoice) u1.voice = englishVoice;
+        window.speechSynthesis.speak(u1);
+
+    } else {
+        // NORMAL WIN LOGIC: Clean voice, removed echo
+        const text = `${extraData} Wins`;
+        const u1 = new SpeechSynthesisUtterance(text);
+        u1.pitch = 0.6; 
+        u1.rate = 0.9;
+        u1.volume = 1.0;
+        if (englishVoice) u1.voice = englishVoice;
+        window.speechSynthesis.speak(u1);
     }
   }
 };
@@ -153,6 +163,8 @@ const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player
   isPaused: false,
   winner: null,
   isMasacre: false,
+  isDramaticFinish: false,
+  isNoScope: false,
   ballSpeed: mode === 'hardcore' ? HARDCORE_INITIAL_BALL_SPEED : INITIAL_BALL_SPEED,
   rallyPaddleHits: 0,
   countdown: 0,
@@ -161,6 +173,8 @@ const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player
   consecutiveStraightHits: 0,
   boardRotation: 0,
   mode: mode,
+  lastHitter: null,
+  currentPointWallHits: 0,
 });
 
 export const useGameLogic = () => {
@@ -239,6 +253,7 @@ export const useGameLogic = () => {
           const newCount = prev.countdown - 1;
           let newBall = { ...prev.ball };
           let lastScorer = prev.lastScorer;
+          let isNoScope = prev.isNoScope;
           
           // Launch ball when countdown hits 0
           if (newCount === 0) {
@@ -247,13 +262,15 @@ export const useGameLogic = () => {
                 y: 0 // Launch straight
              };
              lastScorer = null; // Clear score animation
+             isNoScope = false;
           }
 
           return {
             ...prev,
             countdown: newCount,
             ball: newBall,
-            lastScorer
+            lastScorer,
+            isNoScope
           };
         });
       }, 1000);
@@ -287,6 +304,8 @@ export const useGameLogic = () => {
       let rallyPaddleHits = prev.rallyPaddleHits;
       let newConsecutiveStraightHits = prev.consecutiveStraightHits;
       let newBoardRotation = prev.boardRotation;
+      let lastHitter = prev.lastHitter;
+      let currentPointWallHits = prev.currentPointWallHits;
 
       // Move paddles
       if (keysPressed.current['w']) {
@@ -315,10 +334,12 @@ export const useGameLogic = () => {
       if (ball.position.y - BALL_SIZE / 2 <= 0) {
         ball.position.y = BALL_SIZE / 2; // Clamp position
         ball.velocity.y = Math.abs(ball.velocity.y); // Force down
+        if (lastHitter) currentPointWallHits++; // Increment bounce count
         playGameSound('wall');
       } else if (ball.position.y + BALL_SIZE / 2 >= GAME_HEIGHT) {
         ball.position.y = GAME_HEIGHT - BALL_SIZE / 2; // Clamp position
         ball.velocity.y = -Math.abs(ball.velocity.y); // Force up
+        if (lastHitter) currentPointWallHits++; // Increment bounce count
         playGameSound('wall');
       }
 
@@ -359,6 +380,9 @@ export const useGameLogic = () => {
       if (isCollidingWithLeftPaddle && ball.velocity.x < 0) {
         // Push ball out of paddle to prevent stuck loop
         ball.position.x = 20 + PADDLE_WIDTH + BALL_SIZE / 2 + 1;
+        
+        lastHitter = 'player1';
+        currentPointWallHits = 0; // Reset bounces on paddle hit
 
         rallyPaddleHits++;
         if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
@@ -397,6 +421,9 @@ export const useGameLogic = () => {
       } else if (isCollidingWithRightPaddle && ball.velocity.x > 0) {
         // Push ball out of paddle to prevent stuck loop
         ball.position.x = GAME_WIDTH - 20 - PADDLE_WIDTH - BALL_SIZE / 2 - 1;
+
+        lastHitter = 'player2';
+        currentPointWallHits = 0; // Reset bounces on paddle hit
 
         rallyPaddleHits++;
         if (checkSpeedUp(rallyPaddleHits) && currentTotalScore < MAX_PROGRESSION_SCORE) {
@@ -466,44 +493,47 @@ export const useGameLogic = () => {
       // Scoring
       let newWinner = prev.winner;
       let isMasacre = false;
+      let isDramaticFinish = false;
+      let isNoScope = false;
       let newCountdown = prev.countdown;
       let newDirection = prev.nextBallDirection;
       let lastScorer = prev.lastScorer;
 
+      const handleScore = (scorer: 'player1' | 'player2') => {
+          if (scorer === 'player1') {
+              score.player1++;
+              lastScorer = playerNames.player1;
+          } else {
+              score.player2++;
+              lastScorer = playerNames.player2;
+          }
+
+          if (currentPointWallHits > 3) {
+              isNoScope = true;
+              playGameSound('noscope');
+          } else {
+              playGameSound('score');
+          }
+          
+          // Reset Ball Speed Logic
+          newBallSpeed = getSpeedForScore(score.player1 + score.player2, mode);
+          rallyPaddleHits = 0;
+          newConsecutiveStraightHits = 0;
+          newBoardRotation = 0; 
+          currentPointWallHits = 0;
+          lastHitter = null;
+
+          ball = resetBallPosition(scorer === 'player1' ? -1 : 1);
+          newCountdown = 3;
+          newDirection = scorer === 'player1' ? -1 : 1;
+          paddles.left.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
+          paddles.right.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
+      };
+
       if (ball.position.x < 0) {
-        score.player2++;
-        playGameSound('score');
-        lastScorer = playerNames.player2; // Use Custom Name
-        
-        // Reset Ball Speed Logic:
-        // Discard rally speed bonus, recalculate base speed based on new score
-        newBallSpeed = getSpeedForScore(score.player1 + score.player2, mode);
-        
-        rallyPaddleHits = 0;
-        newConsecutiveStraightHits = 0;
-        newBoardRotation = 0; // Reset rotation
-        ball = resetBallPosition(1);
-        newCountdown = 3;
-        newDirection = 1;
-        paddles.left.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-        paddles.right.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-
+        handleScore('player2');
       } else if (ball.position.x > GAME_WIDTH) {
-        score.player1++;
-        playGameSound('score');
-        lastScorer = playerNames.player1; // Use Custom Name
-        
-        // Reset Ball Speed Logic
-        newBallSpeed = getSpeedForScore(score.player1 + score.player2, mode);
-
-        rallyPaddleHits = 0;
-        newConsecutiveStraightHits = 0;
-        newBoardRotation = 0; // Reset rotation
-        ball = resetBallPosition(-1);
-        newCountdown = 3;
-        newDirection = -1;
-        paddles.left.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-        paddles.right.y = GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2;
+        handleScore('player1');
       }
 
       // Block Spawning Logic
@@ -565,16 +595,23 @@ export const useGameLogic = () => {
       
       if ((score.player1 >= BASE_WINNING_SCORE || score.player2 >= BASE_WINNING_SCORE) && scoreDiff >= WIN_BY_MARGIN) {
           if (score.player1 > score.player2) {
-              newWinner = playerNames.player1; // Use custom name
+              newWinner = playerNames.player1; 
               if (score.player2 === 0) isMasacre = true;
           } else {
-              newWinner = playerNames.player2; // Use custom name
+              newWinner = playerNames.player2; 
               if (score.player1 === 0) isMasacre = true;
           }
           isGameActive = false;
+
+          // Dramatic Finish: Winner has score > BASE_WINNING_SCORE (meaning they went past 5 points to win)
+          if (Math.max(score.player1, score.player2) > BASE_WINNING_SCORE) {
+              isDramaticFinish = true;
+          }
           
           if (isMasacre) {
               playGameSound('masacre', newWinner);
+          } else if (isDramaticFinish) {
+              playGameSound('dramatic', newWinner);
           } else {
               playGameSound('win', newWinner);
           }
@@ -588,6 +625,8 @@ export const useGameLogic = () => {
           score, 
           winner: newWinner, 
           isMasacre, 
+          isDramaticFinish,
+          isNoScope,
           isGameActive, 
           ballSpeed: newBallSpeed,
           rallyPaddleHits,
@@ -595,7 +634,9 @@ export const useGameLogic = () => {
           nextBallDirection: newDirection,
           lastScorer,
           consecutiveStraightHits: newConsecutiveStraightHits,
-          boardRotation: newBoardRotation
+          boardRotation: newBoardRotation,
+          lastHitter,
+          currentPointWallHits
       };
     });
   }, []);
