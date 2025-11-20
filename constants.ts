@@ -45,7 +45,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-green-500', 
     border: 'border-green-700', 
     glow: 'shadow-green-400',
-    img: 'https://cdn-icons-png.flaticon.com/512/616/616408.png'
+    img: 'https://64.media.tumblr.com/d9a675b2ad0263037f4c74695a03ceff/tumblr_ns312s04zS1tu022ro2_1280.png'
   },
   sonic: { 
     name: 'Hedgehog', 
@@ -101,7 +101,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-gray-400', 
     border: 'border-gray-600', 
     glow: 'shadow-gray-300',
-    img: 'https://upload.wikimedia.org/wikipedia/en/a/a1/The_Mandalorian_character.jpg'
+    img: 'https://w7.pngwing.com/pngs/269/626/png-transparent-person-holding-sword-illustration-t-shirt-the-mandalorian-armor-boba-fett-samurai-poster-anakin-skywalker-top-thumbnail.png'
   },
   panda: { 
     name: 'Kung Fu', 
@@ -109,7 +109,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-white', 
     border: 'border-black', 
     glow: 'shadow-white',
-    img: 'https://upload.wikimedia.org/wikipedia/en/7/76/Kungfupanda.jpg'
+    img: 'https://i.pinimg.com/originals/a6/4b/e2/a64be27204aeb61ce9e156c9e47231c1.gif'
   },
   emilia: {
     name: 'Emilia-tan',
@@ -117,6 +117,6 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-purple-100',
     border: 'border-purple-600',
     glow: 'shadow-purple-300',
-    img: 'https://static.wikia.nocookie.net/rezero/images/c/c3/Emilia_Memory_Snow_Design.png'
+    img: 'https://e7.pngegg.com/pngimages/389/926/png-clipart-re-zero-%E2%88%92-starting-life-in-another-world-anime-chibi-manga-re-zero-starting-life-in-another-world-vol-1-light-novel-anime-purple-cg-artwork-thumbnail.png'
   }
 };
