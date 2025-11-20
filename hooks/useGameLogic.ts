@@ -30,37 +30,15 @@ import {
 // Sound Utility - Lazy Initialization
 let audioCtx: AudioContext | null = null;
 
+// CRITICAL FIX: Keep a reference to the active utterance to prevent Chrome Garbage Collection from stopping audio
+let activeUtterance: SpeechSynthesisUtterance | null = null;
+
 const getAudioContext = () => {
     if (!audioCtx && typeof window !== 'undefined') {
         audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     return audioCtx;
 };
-
-// Helper to ensure voices are loaded (Chrome quirk)
-const getVoices = (): Promise<SpeechSynthesisVoice[]> => {
-    return new Promise((resolve) => {
-        let voices = window.speechSynthesis.getVoices();
-        if (voices.length > 0) {
-            resolve(voices);
-            return;
-        }
-        
-        // If empty, wait for the event
-        window.speechSynthesis.onvoiceschanged = () => {
-            voices = window.speechSynthesis.getVoices();
-            resolve(voices);
-        };
-        
-        // Fallback timeout in case event never fires
-        setTimeout(() => resolve([]), 1000);
-    });
-};
-
-// Pre-fetch voices globally to warm up the browser cache
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    getVoices().then(() => console.log("Voices warmed up"));
-}
 
 const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre' | 'noscope' | 'dramatic' | 'lightspeed' | 'pongpoint' | 'eleganto' | 'yameroo' | 'tsukuyomi' | 'explosion' | 'casi' | 'remontada' | 'sonicboom', extraData?: string) => {
   const ctx = getAudioContext();
@@ -126,92 +104,103 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
     const isSpecial = ['win', 'masacre', 'noscope', 'dramatic', 'lightspeed', 'pongpoint', 'eleganto', 'yameroo', 'tsukuyomi', 'explosion', 'casi', 'remontada', 'sonicboom'].includes(type);
     
     if (isSpecial) {
-        // Cancel any ongoing speech to prioritize game events
+        // Ensure system is not paused
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
+        // Cancel ongoing to prioritize new event
         window.speechSynthesis.cancel();
 
-        // Fetch voices synchronously (should be loaded by now due to global warmup) but fallback safely
-        let voices = window.speechSynthesis.getVoices();
+        // Get voices synchronously. If empty array, we proceed anyway (system default will be used)
+        const voices = window.speechSynthesis.getVoices();
         
-        // Fallback logic
-        const englishVoice = voices.find(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-GB')) || voices[0];
+        const englishVoice = voices.find(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-GB')) || null; // null allows browser default
         const japanVoice = voices.find(v => v.lang.startsWith('ja')); 
         const esVoice = voices.find(v => v.lang.startsWith('es'));
 
         let text = "";
-        let u1 = new SpeechSynthesisUtterance();
+        
+        // Create new utterance
+        const u = new SpeechSynthesisUtterance();
         
         // Default config
-        u1.voice = englishVoice; // Default to English/System
-        u1.rate = 0.9;
-        u1.pitch = 0.6;
-        u1.volume = 1.0;
+        if (englishVoice) u.voice = englishVoice;
+        u.rate = 0.9;
+        u.pitch = 0.6;
+        u.volume = 1.0;
 
         if (type === 'masacre') {
             text = `MASACRE! ... ${extraData} Wins`;
-            u1.pitch = 0.4; 
+            u.pitch = 0.4; 
         } else if (type === 'tsukuyomi') {
             text = `Caiste en el Tsukuyomi Infinito ... ${extraData} Wins`;
-            u1.pitch = 0.1; 
-            u1.rate = 0.8; 
-            if (esVoice) u1.voice = esVoice;
-            else if (japanVoice) u1.voice = japanVoice;
+            u.pitch = 0.1; 
+            u.rate = 0.8; 
+            if (esVoice) u.voice = esVoice;
+            else if (japanVoice) u.voice = japanVoice;
         } else if (type === 'remontada') {
             text = `Una victoria desde el principio, no, desde cero ... ${extraData} Wins`;
-            u1.pitch = 1.1; 
-            u1.rate = 0.85; 
-            if (esVoice) u1.voice = esVoice;
+            u.pitch = 1.1; 
+            u.rate = 0.85; 
+            if (esVoice) u.voice = esVoice;
         } else if (type === 'explosion') {
             text = `EXPLOOOOOSION!! ... ${extraData} Wins`;
-            u1.pitch = 1.4; // High pitch like Megumin
-            u1.rate = 1.0;
+            u.pitch = 1.4; // High pitch like Megumin
+            u.rate = 1.0;
         } else if (type === 'sonicboom') {
             text = `SONIC BOOM! ... ${extraData} Wins`;
-            u1.pitch = 1.2; 
-            u1.rate = 1.4; // Fast
+            u.pitch = 1.2; 
+            u.rate = 1.4; // Fast
         } else if (type === 'casi') {
             text = `Casi te gano! ... ${extraData} Wins`; 
-            u1.pitch = 1.2; 
-            u1.rate = 1.1;
-            if (esVoice) u1.voice = esVoice;
+            u.pitch = 1.2; 
+            u.rate = 1.1;
+            if (esVoice) u.voice = esVoice;
         } else if (type === 'dramatic') {
             text = `DRAMATIC FINISH! ... ${extraData} Wins`;
-            u1.pitch = 0.2; 
-            u1.rate = 0.6; 
+            u.pitch = 0.2; 
+            u.rate = 0.6; 
         } else if (type === 'noscope') {
             text = "NO SCOPE!"; // Mid-game, don't say winner yet
-            u1.pitch = 1.5; 
-            u1.rate = 1.2;
+            u.pitch = 1.5; 
+            u.rate = 1.2;
         } else if (type === 'pongpoint') {
             text = "PONG POINT!";
-            u1.pitch = 0.1; 
-            u1.rate = 1.1;
+            u.pitch = 0.1; 
+            u.rate = 1.1;
         } else if (type === 'lightspeed') {
             text = "Light speedo!!";
-            u1.pitch = 1.4; 
-            u1.rate = 1.4;
+            u.pitch = 1.4; 
+            u.rate = 1.4;
         } else if (type === 'eleganto') {
             text = "Elegan-to!";
-            u1.pitch = 0.8; 
-            if (japanVoice) u1.voice = japanVoice; 
+            u.pitch = 0.8; 
+            if (japanVoice) u.voice = japanVoice; 
         } else if (type === 'yameroo') {
             text = "Yameroo Freeza!";
-            u1.pitch = 1.2; 
-            u1.rate = 1.1;
-            if (japanVoice) u1.voice = japanVoice; 
+            u.pitch = 1.2; 
+            u.rate = 1.1;
+            if (japanVoice) u.voice = japanVoice; 
         } else {
             // NORMAL WIN
             text = `${extraData} Wins`;
         }
 
-        u1.text = text;
+        u.text = text;
         
-        // Final safety check before speaking
-        if (u1.voice) {
-            window.speechSynthesis.speak(u1);
-        } else {
-            // Last resort if no voice object matches
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-        }
+        // Prevent GC by assigning to global variable
+        activeUtterance = u;
+        
+        u.onend = () => {
+            activeUtterance = null; // Clean up ref when done
+        };
+
+        u.onerror = (e) => {
+            console.error("Speech error:", e);
+            activeUtterance = null;
+        };
+
+        window.speechSynthesis.speak(u);
     }
   }
 };
@@ -281,11 +270,15 @@ export const useGameLogic = () => {
         ctx.resume().catch(() => {});
     }
     
-    // 2. Resume/Load Speech Synthesis
+    // 2. Unblock Speech Synthesis (User Gesture)
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        // This acts as a "user gesture" to unlock speech on mobile/safari
-        window.speechSynthesis.cancel(); 
-        getVoices(); // Trigger voice loading
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
+        window.speechSynthesis.cancel();
+        // Force a silent utterance to wake up the engine
+        const wakeUp = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(wakeUp);
     }
 
     const startDir = Math.random() > 0.5 ? 1 : -1;

@@ -215,6 +215,64 @@ const App: React.FC = () => {
   
   const [gameScale, setGameScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasPlayedIntroRef = useRef(false);
+
+  // INTRO AUDIO EFFECT
+  useEffect(() => {
+      const playIntro = () => {
+          if (hasPlayedIntroRef.current) return;
+          
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+              window.speechSynthesis.cancel(); // Reset
+
+              const u = new SpeechSynthesisUtterance("Poooooong... Xtreeeeeme!");
+              u.pitch = 0.1; // Extremely Deep
+              u.rate = 0.6;  // Slow and dramatic
+              u.volume = 1.0;
+              
+              const voices = window.speechSynthesis.getVoices();
+              // Try to find a deep sounding voice or just the default English
+              const selectedVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+              if (selectedVoice) u.voice = selectedVoice;
+              
+              // Assign to window to prevent GC issues
+              (window as any).introUtterance = u;
+              u.onend = () => { delete (window as any).introUtterance; };
+
+              window.speechSynthesis.speak(u);
+              hasPlayedIntroRef.current = true;
+          }
+      };
+
+      // 1. Try to play immediately (might be blocked by autoplay policy)
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+          playIntro();
+      } else {
+          window.speechSynthesis.addEventListener('voiceschanged', playIntro, { once: true });
+      }
+
+      // 2. Fallback: Play on first interaction if autoplay blocked
+      const unlockAudio = () => {
+          if (!hasPlayedIntroRef.current) {
+              playIntro();
+          }
+          // Also resume context for game sounds
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioContext();
+          if (ctx.state === 'suspended') {
+              ctx.resume();
+          }
+      };
+      
+      window.addEventListener('click', unlockAudio, { once: true });
+      window.addEventListener('keydown', unlockAudio, { once: true });
+
+      return () => {
+          window.removeEventListener('click', unlockAudio);
+          window.removeEventListener('keydown', unlockAudio);
+      };
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
