@@ -116,10 +116,13 @@ const LeaderboardService = {
         currentList = this.getLocal();
     }
     
+    // Check if user exists
     const existingIndex = currentList.findIndex(e => e.name.toUpperCase() === newEntry.name.toUpperCase());
 
     if (existingIndex !== -1) {
+        // Cumulative Score Logic
         currentList[existingIndex].score += newEntry.score;
+        // Update metadata
         currentList[existingIndex].date = newEntry.date;
         currentList[existingIndex].mode = newEntry.mode;
         
@@ -127,9 +130,11 @@ const LeaderboardService = {
             currentList[existingIndex].isMasacre = true;
         }
     } else {
+        // New User
         currentList.push(newEntry);
     }
 
+    // Sort and limit
     const updatedList = currentList
       .sort((a, b) => b.score - a.score)
       .slice(0, 10); 
@@ -213,7 +218,7 @@ const App: React.FC = () => {
 
   // --- AUDIO TEST FUNCTION (BEEP + VOICE) ---
   const testAudio = () => {
-      // 1. TEST BEEP (Hardware Check - works even if TTS fails)
+      // 1. TEST BEEP (Hardware Check)
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       try {
           const ctx = new AudioContext();
@@ -235,7 +240,6 @@ const App: React.FC = () => {
 
       // 2. TEST VOICE (TTS Check)
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          // Force wake up safari
           if (window.speechSynthesis.paused) {
               window.speechSynthesis.resume();
           }
@@ -243,12 +247,9 @@ const App: React.FC = () => {
           
           const u = new SpeechSynthesisUtterance("Audio Online.");
           const voices = window.speechSynthesis.getVoices();
-          
-          // Select best available English voice
           const preferredVoice = voices.find(v => v.lang === 'en-US') || 
                                  voices.find(v => v.lang.startsWith('en')) ||
-                                 voices[0]; // Fallback to system default
-                                 
+                                 voices[0];
           if (preferredVoice) u.voice = preferredVoice;
 
           u.volume = 1.0;
@@ -256,7 +257,6 @@ const App: React.FC = () => {
           u.pitch = 1.0;
           window.speechSynthesis.speak(u);
 
-          // Friendly Success Message
           alert(`✅ SUCCESS!\n\n1. You should have heard a BEEP.\n2. You should have heard a VOICE.\n\nVoices Detected: ${voices.length}\n\n(If you heard nothing, check your volume!)`);
       } else {
           alert("Your browser does not support Speech Synthesis.");
@@ -410,6 +410,9 @@ const App: React.FC = () => {
   const handleSubmitScore = async () => {
     if (isSubmitting || !gameState.winner) return;
 
+    // Guard against default names logic
+    if (gameState.winner.toUpperCase() === 'PLAYER 1' || gameState.winner.toUpperCase() === 'PLAYER 2') return;
+
     setIsSubmitting(true);
     setSaveError(null);
     const points = calculateScore();
@@ -468,6 +471,8 @@ const App: React.FC = () => {
   
   const showRightChar = (gameState.lastScorerId === 'player2' && !gameState.winner) || 
                         (gameState.winner === gameState.playerNames.player2);
+  
+  const isDefaultWinner = gameState.winner && (gameState.winner.toUpperCase() === 'PLAYER 1' || gameState.winner.toUpperCase() === 'PLAYER 2');
 
   return (
     <div className="h-full w-full bg-gray-900 text-white flex flex-col items-center font-mono overflow-hidden">
@@ -684,19 +689,28 @@ const App: React.FC = () => {
                     {!scoreSubmitted ? (
                         <div className="bg-gray-800 p-6 rounded-lg border-2 border-blue-500 shadow-2xl mb-6 animate-fade-in-up relative">
                             <h3 className="text-xl text-blue-300 mb-2 uppercase font-bold">Score: <span className="text-white">{finalScore}</span></h3>
-                            {saveError && (
-                                <div className="mb-2 text-xs text-red-400 bg-red-900/20 p-1 rounded border border-red-800 break-all">
-                                    ⚠️ Save Error: {saveError}. <br/> Saved locally.
+                            
+                            {isDefaultWinner ? (
+                                <div className="mt-4 p-2 bg-yellow-900/30 border border-yellow-600 rounded text-yellow-400 text-sm font-bold text-center animate-pulse">
+                                    ⚠ USE A CUSTOM NAME TO SAVE SCORE
                                 </div>
+                            ) : (
+                                <>
+                                    {saveError && (
+                                        <div className="mb-2 text-xs text-red-400 bg-red-900/20 p-1 rounded border border-red-800 break-all">
+                                            ⚠️ Save Error: {saveError}. <br/> Saved locally.
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-gray-400 mb-4">Add to {gameState.winner}'s total</p>
+                                    <button 
+                                        onClick={handleSubmitScore}
+                                        disabled={isSubmitting}
+                                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded uppercase transition-colors flex items-center justify-center gap-2 shadow-lg"
+                                    >
+                                        {isSubmitting ? 'Updating...' : '💾 Save Score'}
+                                    </button>
+                                </>
                             )}
-                            <p className="text-xs text-gray-400 mb-4">Add to {gameState.winner}'s total</p>
-                            <button 
-                                onClick={handleSubmitScore}
-                                disabled={isSubmitting}
-                                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded uppercase transition-colors flex items-center justify-center gap-2 shadow-lg"
-                            >
-                                {isSubmitting ? 'Updating...' : '💾 Save Score'}
-                            </button>
                         </div>
                     ) : (
                        <div className="mb-8 flex flex-col items-center animate-pulse">
