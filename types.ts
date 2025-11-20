@@ -1,3 +1,4 @@
+
 export interface Vector {
   x: number;
   y: number;
@@ -18,19 +19,33 @@ export interface Block {
 
 export type GameMode = 'classic' | 'hardcore';
 
+// Define available skin keys
+export type SkinType = 
+  | 'default' 
+  | 'frog' 
+  | 'sonic' 
+  | 'batman' 
+  | 'superman' 
+  | 'ironman' 
+  | 'stormtrooper' 
+  | 'saiyan' 
+  | 'mando' 
+  | 'panda';
+
 export interface GameState {
   paddles: { left: Paddle; right: Paddle };
   ball: Ball;
   blocks: Block[];
   score: { player1: number; player2: number };
   playerNames: { player1: string; player2: string };
+  skins: { player1: SkinType; player2: SkinType }; // New: Track selected skins
   isGameActive: boolean;
   isPaused: boolean;
   winner: string | null;
   isMasacre: boolean;
-  isDramaticFinish: boolean; // New: For DBZ style finish
-  isNoScope: boolean; // New: For trick shots
-  isPongPoint: boolean; // New: For points via blocks
+  isDramaticFinish: boolean;
+  isNoScope: boolean;
+  isPongPoint: boolean;
   ballSpeed: number;
   rallyPaddleHits: number;
   countdown: number;
@@ -39,12 +54,12 @@ export interface GameState {
   consecutiveStraightHits: number;
   boardRotation: number;
   mode: GameMode;
-  lastHitter: 'player1' | 'player2' | null; // Track who hit ball last for No Scope
-  currentPointWallHits: number; // Track bounces for No Scope
-  hitBlockInFlight: boolean; // Track if block was hit in current flight
-  hasSpeedThresholdMet: boolean; // Track if light speed audio played
-  hasElegantoPlayed: boolean; // Track if Eleganto audio played
-  hasYamerooPlayed: boolean; // Track if Yameroo audio played
+  lastHitter: 'player1' | 'player2' | null;
+  currentPointWallHits: number;
+  hitBlockInFlight: boolean;
+  hasSpeedThresholdMet: boolean;
+  hasElegantoPlayed: boolean;
+  hasYamerooPlayed: boolean;
 }
 
 export interface LeaderboardEntry {

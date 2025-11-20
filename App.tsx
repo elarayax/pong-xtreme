@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScoreBoard from './components/ScoreBoard';
 import GameBoard from './components/GameBoard';
 import { useGameLogic } from './hooks/useGameLogic';
-import { LeaderboardEntry, GameMode } from './types';
-import { GAME_WIDTH, GAME_HEIGHT } from './constants';
+import { LeaderboardEntry, GameMode, SkinType } from './types';
+import { GAME_WIDTH, GAME_HEIGHT, AVAILABLE_SKINS } from './constants';
 
 // --- CONFIGURATION FOR GLOBAL LEADERBOARD ---
 // CRITICAL FIX: Explicit access to variables is required for Vite to bundle them correctly.
@@ -220,6 +220,8 @@ const App: React.FC = () => {
   // Input State for Pre-game
   const [player1Name, setPlayer1Name] = useState('PLAYER 1');
   const [player2Name, setPlayer2Name] = useState('PLAYER 2');
+  const [player1Skin, setPlayer1Skin] = useState<SkinType>('default');
+  const [player2Skin, setPlayer2Skin] = useState<SkinType>('default');
   
   // Scaling State
   const [gameScale, setGameScale] = useState(1);
@@ -298,7 +300,7 @@ const App: React.FC = () => {
   const handleStartGame = (mode: GameMode) => {
       const p1 = player1Name.trim() || 'PLAYER 1';
       const p2 = player2Name.trim() || 'PLAYER 2';
-      startGame(mode, p1, p2);
+      startGame(mode, p1, p2, player1Skin, player2Skin);
   };
 
   const calculateScore = () => {
@@ -559,13 +561,24 @@ const App: React.FC = () => {
                                    type="text"
                                    value={player1Name}
                                    onChange={(e) => setPlayer1Name(e.target.value)}
-                                   onFocus={(e) => e.target.select()} // Auto-select text on focus
+                                   onFocus={(e) => e.target.select()} 
                                    placeholder="PLAYER 1"
                                    maxLength={10}
                                    className="w-full bg-gray-800 border-2 border-blue-500 text-blue-300 text-center font-bold py-2 rounded uppercase focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-blue-800"
                                />
+                               <div className="mt-1">
+                                    <select 
+                                        value={player1Skin}
+                                        onChange={(e) => setPlayer1Skin(e.target.value as SkinType)}
+                                        className="w-full bg-gray-900 border border-blue-500 text-gray-300 text-xs rounded p-1 focus:outline-none cursor-pointer"
+                                    >
+                                        {Object.entries(AVAILABLE_SKINS).map(([key, skin]) => (
+                                            <option key={key} value={key}>{skin.icon} {skin.name}</option>
+                                        ))}
+                                    </select>
+                               </div>
                                {p1Stats && (
-                                   <div className="text-[10px] text-blue-300 bg-blue-900/30 rounded py-1 px-2 flex justify-between items-center animate-fade-in">
+                                   <div className="text-[10px] text-blue-300 bg-blue-900/30 rounded py-1 px-2 flex justify-between items-center animate-fade-in mt-1">
                                        <span>🏆 Wins: {p1Stats.wins}</span>
                                        <span>🔥 Best: {p1Stats.bestScore}</span>
                                    </div>
@@ -577,13 +590,24 @@ const App: React.FC = () => {
                                    type="text"
                                    value={player2Name}
                                    onChange={(e) => setPlayer2Name(e.target.value)}
-                                   onFocus={(e) => e.target.select()} // Auto-select text on focus
+                                   onFocus={(e) => e.target.select()} 
                                    placeholder="PLAYER 2"
                                    maxLength={10}
                                    className="w-full bg-gray-800 border-2 border-red-500 text-red-300 text-center font-bold py-2 rounded uppercase focus:outline-none focus:ring-2 focus:ring-red-400 placeholder-red-800"
                                />
+                               <div className="mt-1">
+                                    <select 
+                                        value={player2Skin}
+                                        onChange={(e) => setPlayer2Skin(e.target.value as SkinType)}
+                                        className="w-full bg-gray-900 border border-red-500 text-gray-300 text-xs rounded p-1 focus:outline-none cursor-pointer"
+                                    >
+                                        {Object.entries(AVAILABLE_SKINS).map(([key, skin]) => (
+                                            <option key={key} value={key}>{skin.icon} {skin.name}</option>
+                                        ))}
+                                    </select>
+                               </div>
                                {p2Stats && (
-                                   <div className="text-[10px] text-red-300 bg-red-900/30 rounded py-1 px-2 flex justify-between items-center animate-fade-in">
+                                   <div className="text-[10px] text-red-300 bg-red-900/30 rounded py-1 px-2 flex justify-between items-center animate-fade-in mt-1">
                                        <span>🏆 Wins: {p2Stats.wins}</span>
                                        <span>🔥 Best: {p2Stats.bestScore}</span>
                                    </div>

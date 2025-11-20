@@ -1,13 +1,67 @@
+
 import React from 'react';
 import { GameState } from '../types';
-import { GAME_WIDTH, GAME_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, BALL_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT } from '../constants';
+import { GAME_WIDTH, GAME_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, BALL_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, AVAILABLE_SKINS } from '../constants';
 
 interface GameBoardProps {
   gameState: GameState;
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation, isNoScope, isPongPoint } = gameState;
+  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation, isNoScope, isPongPoint, skins, hasSpeedThresholdMet, hasYamerooPlayed } = gameState;
+
+  // Helper to get skin classes
+  const getSkinStyles = (side: 'left' | 'right', skinKey: string) => {
+      const skin = AVAILABLE_SKINS[skinKey as keyof typeof AVAILABLE_SKINS] || AVAILABLE_SKINS.default;
+      
+      if (skinKey === 'default') {
+          return {
+              bg: side === 'left' ? 'bg-blue-400' : 'bg-red-400',
+              shadow: side === 'left' ? '0 0 10px #60a5fa' : '0 0 10px #f87171',
+              border: '',
+              icon: ''
+          };
+      }
+      return {
+          bg: skin.bg,
+          shadow: `0 0 15px ${skin.glow?.replace('shadow-', '')}`, // Using class logic or just approximate
+          border: `2px solid ${skin.border?.replace('border-', '')}`, // This is a bit hacky with tailwind strings, let's use classNames
+          borderClass: skin.border,
+          glowClass: skin.glow,
+          icon: skin.icon
+      };
+  };
+
+  const leftSkin = getSkinStyles('left', skins.player1);
+  const rightSkin = getSkinStyles('right', skins.player2);
+
+  // Dynamic Ball Styles
+  const getBallStyles = () => {
+      // 1. Yameroo Mode (Super Rally) - Gold/Yellow
+      if (hasYamerooPlayed) {
+          return {
+              bg: 'bg-yellow-400',
+              shadow: '0 0 30px #facc15',
+              classes: 'animate-pulse' // Intense pulsing
+          };
+      }
+      // 2. Light Speed Mode - Intense White Pulse
+      if (hasSpeedThresholdMet) {
+          return {
+              bg: 'bg-white',
+              shadow: '0 0 30px #ffffff',
+              classes: 'animate-pulse brightness-150' // Brightness boost + pulse
+          };
+      }
+      // 3. Normal
+      return {
+          bg: 'bg-white',
+          shadow: '0 0 20px #ffffff',
+          classes: ''
+      };
+  };
+
+  const ballStyle = getBallStyles();
 
   return (
     <div 
@@ -27,27 +81,39 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
 
       {/* Left Paddle */}
       <div
-        className="absolute bg-blue-400 shadow-lg"
+        className={`absolute shadow-lg flex items-center justify-center overflow-visible z-10 ${leftSkin.bg} ${leftSkin.borderClass || ''} ${leftSkin.glowClass || ''}`}
         style={{
           left: '20px',
           top: `${paddles.left.y}px`,
           width: `${PADDLE_WIDTH}px`,
           height: `${PADDLE_HEIGHT}px`,
-          boxShadow: '0 0 10px #60a5fa',
+          boxShadow: leftSkin.shadow?.startsWith('0') ? leftSkin.shadow : undefined, // Use inline only if calculated manually
         }}
-      />
+      >
+          {leftSkin.icon && (
+              <span className="text-2xl absolute -left-8 animate-bounce" style={{filter: 'drop-shadow(0 0 2px black)'}}>
+                  {leftSkin.icon}
+              </span>
+          )}
+      </div>
 
       {/* Right Paddle */}
       <div
-        className="absolute bg-red-400 shadow-lg"
+        className={`absolute shadow-lg flex items-center justify-center overflow-visible z-10 ${rightSkin.bg} ${rightSkin.borderClass || ''} ${rightSkin.glowClass || ''}`}
         style={{
           right: '20px',
           top: `${paddles.right.y}px`,
           width: `${PADDLE_WIDTH}px`,
           height: `${PADDLE_HEIGHT}px`,
-          boxShadow: '0 0 10px #f87171',
+          boxShadow: rightSkin.shadow?.startsWith('0') ? rightSkin.shadow : undefined,
         }}
-      />
+      >
+          {rightSkin.icon && (
+              <span className="text-2xl absolute -right-8 animate-bounce" style={{filter: 'drop-shadow(0 0 2px black)'}}>
+                  {rightSkin.icon}
+              </span>
+          )}
+      </div>
 
       {/* Blocks */}
       {blocks.map((block, index) => (
@@ -66,13 +132,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
 
       {/* Ball */}
       <div
-        className="absolute bg-white rounded-full"
+        className={`absolute rounded-full ${ballStyle.bg} ${ballStyle.classes}`}
         style={{
           left: `${ball.position.x - BALL_SIZE / 2}px`,
           top: `${ball.position.y - BALL_SIZE / 2}px`,
           width: `${BALL_SIZE}px`,
           height: `${BALL_SIZE}px`,
-          boxShadow: '0 0 20px #ffffff',
+          boxShadow: ballStyle.shadow,
         }}
       />
 

@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, Block, GameMode } from '../types';
+import { GameState, Block, GameMode, SkinType } from '../types';
 import {
   GAME_WIDTH,
   GAME_HEIGHT,
@@ -189,7 +190,7 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
   }
 };
 
-const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player 1', p2Name: string = 'Player 2'): GameState => ({
+const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player 1', p2Name: string = 'Player 2', p1Skin: SkinType = 'default', p2Skin: SkinType = 'default'): GameState => ({
   paddles: {
     left: { y: GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2 },
     right: { y: GAME_HEIGHT / 2 - PADDLE_HEIGHT / 2 },
@@ -201,6 +202,7 @@ const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player
   blocks: [],
   score: { player1: 0, player2: 0 },
   playerNames: { player1: p1Name, player2: p2Name },
+  skins: { player1: p1Skin, player2: p2Skin },
   isGameActive: false,
   isPaused: false,
   winner: null,
@@ -234,7 +236,7 @@ export const useGameLogic = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  const startGame = useCallback((mode: GameMode = 'classic', p1Name: string, p2Name: string) => {
+  const startGame = useCallback((mode: GameMode = 'classic', p1Name: string, p2Name: string, p1Skin: SkinType, p2Skin: SkinType) => {
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
         ctx.resume().catch(() => {});
@@ -245,7 +247,7 @@ export const useGameLogic = () => {
 
     const startDir = Math.random() > 0.5 ? 1 : -1;
     setGameState(prev => ({
-        ...createInitialState(mode, p1Name, p2Name), 
+        ...createInitialState(mode, p1Name, p2Name, p1Skin, p2Skin), 
         isGameActive: true,
         countdown: 3,
         nextBallDirection: startDir
@@ -338,7 +340,7 @@ export const useGameLogic = () => {
       if (!prev.isGameActive || prev.winner || prev.isPaused) return prev;
       if (prev.countdown > 0) return prev;
 
-      let { paddles, ball, blocks, score, mode, playerNames } = JSON.parse(JSON.stringify(prev));
+      let { paddles, ball, blocks, score, mode, playerNames, skins } = JSON.parse(JSON.stringify(prev));
       let newBallSpeed = prev.ballSpeed;
       let rallyPaddleHits = prev.rallyPaddleHits;
       let newConsecutiveStraightHits = prev.consecutiveStraightHits;
@@ -664,19 +666,19 @@ export const useGameLogic = () => {
           score, 
           winner: newWinner, 
           isMasacre, 
-          isDramaticFinish,
-          isNoScope,
-          isPongPoint,
+          isDramaticFinish, 
+          isNoScope, 
+          isPongPoint, 
           isGameActive, 
-          ballSpeed: newBallSpeed,
-          rallyPaddleHits,
-          countdown: newCountdown,
-          nextBallDirection: newDirection,
-          lastScorer,
-          consecutiveStraightHits: newConsecutiveStraightHits,
-          boardRotation: newBoardRotation,
-          lastHitter,
-          currentPointWallHits,
+          ballSpeed: newBallSpeed, 
+          rallyPaddleHits, 
+          countdown: newCountdown, 
+          nextBallDirection: newDirection, 
+          lastScorer, 
+          consecutiveStraightHits: newConsecutiveStraightHits, 
+          boardRotation: newBoardRotation, 
+          lastHitter, 
+          currentPointWallHits, 
           hitBlockInFlight,
           hasSpeedThresholdMet,
           hasElegantoPlayed,
