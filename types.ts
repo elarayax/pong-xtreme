@@ -57,6 +57,7 @@ export interface GameState {
   countdown: number;
   nextBallDirection: number;
   lastScorer: string | null;
+  lastScorerId: 'player1' | 'player2' | null; // New: To track which skin to show
   consecutiveStraightHits: number;
   boardRotation: number;
   mode: GameMode;

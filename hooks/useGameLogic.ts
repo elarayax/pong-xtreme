@@ -211,6 +211,7 @@ const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player
   countdown: 0,
   nextBallDirection: 0,
   lastScorer: null,
+  lastScorerId: null,
   consecutiveStraightHits: 0,
   boardRotation: 0,
   mode: mode,
@@ -306,6 +307,8 @@ export const useGameLogic = () => {
                 y: 0 
              };
              lastScorer = null;
+             // Reset scorer ID when round starts so image disappears
+             prev.lastScorerId = null; 
              isNoScope = false;
              isPongPoint = false;
           }
@@ -315,6 +318,7 @@ export const useGameLogic = () => {
             countdown: newCount,
             ball: newBall,
             lastScorer,
+            lastScorerId: prev.lastScorerId, // Ensure we keep it null if reset above
             isNoScope,
             isPongPoint
           };
@@ -543,14 +547,17 @@ export const useGameLogic = () => {
       let newCountdown = prev.countdown;
       let newDirection = prev.nextBallDirection;
       let lastScorer = prev.lastScorer;
+      let lastScorerId = prev.lastScorerId;
 
       const handleScore = (scorer: 'player1' | 'player2') => {
           if (scorer === 'player1') {
               score.player1++;
               lastScorer = playerNames.player1;
+              lastScorerId = 'player1';
           } else {
               score.player2++;
               lastScorer = playerNames.player2;
+              lastScorerId = 'player2';
           }
 
           if (currentPointWallHits > 3) {
@@ -735,6 +742,7 @@ export const useGameLogic = () => {
           countdown: newCountdown, 
           nextBallDirection: newDirection, 
           lastScorer, 
+          lastScorerId,
           consecutiveStraightHits: newConsecutiveStraightHits, 
           boardRotation: newBoardRotation, 
           lastHitter, 

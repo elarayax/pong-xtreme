@@ -8,7 +8,7 @@ interface GameBoardProps {
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation, isNoScope, isPongPoint, skins, hasSpeedThresholdMet, hasYamerooPlayed } = gameState;
+  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, lastScorerId, isPaused, boardRotation, isNoScope, isPongPoint, skins, hasSpeedThresholdMet, hasYamerooPlayed } = gameState;
 
   // Helper to get skin classes
   const getSkinStyles = (side: 'left' | 'right', skinKey: string) => {
@@ -34,6 +34,16 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
 
   const leftSkin = getSkinStyles('left', skins.player1);
   const rightSkin = getSkinStyles('right', skins.player2);
+  
+  // Resolve Scorer Skin Image
+  let scorerImage = null;
+  if (lastScorerId) {
+      const skinKey = skins[lastScorerId];
+      const skin = AVAILABLE_SKINS[skinKey as keyof typeof AVAILABLE_SKINS];
+      if (skin && skin.img) {
+          scorerImage = skin.img;
+      }
+  }
 
   // Dynamic Ball Styles
   const getBallStyles = () => {
@@ -145,6 +155,14 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
       {/* Scored Point Overlay */}
       {lastScorer && !winner && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none" style={{ transform: `rotate(${-boardRotation}deg)` }}>
+              
+              {/* Character Image for Scorer */}
+              {scorerImage && (
+                  <div className="mb-2 w-32 h-32 animate-fade-in-up">
+                      <img src={scorerImage} alt="Character" className="w-full h-full object-contain drop-shadow-2xl" />
+                  </div>
+              )}
+
               {isNoScope ? (
                    <div className="mb-4 animate-ping">
                        <h2 className="text-7xl font-black text-red-500 italic drop-shadow-[0_5px_5px_rgba(0,0,0,1)]" style={{ WebkitTextStroke: '2px white' }}>
