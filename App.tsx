@@ -211,9 +211,9 @@ const App: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasPlayedIntroRef = useRef(false);
 
-  // --- AUDIO TEST FUNCTION ---
+  // --- AUDIO TEST FUNCTION (BEEP + VOICE) ---
   const testAudio = () => {
-      // 1. TEST BEEP (Hardware Check)
+      // 1. TEST BEEP (Hardware Check - works even if TTS fails)
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       try {
           const ctx = new AudioContext();
@@ -221,23 +221,34 @@ const App: React.FC = () => {
           const gain = ctx.createGain();
           osc.connect(gain);
           gain.connect(ctx.destination);
-          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          osc.frequency.setValueAtTime(440, ctx.currentTime); // A4
           gain.gain.setValueAtTime(0.1, ctx.currentTime);
           osc.start();
           osc.stop(ctx.currentTime + 0.2);
+          
+          if (ctx.state === 'suspended') {
+            ctx.resume();
+          }
       } catch(e) {
           console.error("AudioContext Error:", e);
       }
 
-      // 2. TEST VOICE
+      // 2. TEST VOICE (TTS Check)
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          // Force wake up safari
+          if (window.speechSynthesis.paused) {
+              window.speechSynthesis.resume();
+          }
           window.speechSynthesis.cancel();
           
           const u = new SpeechSynthesisUtterance("Audio Online.");
           const voices = window.speechSynthesis.getVoices();
+          
+          // Select best available English voice
           const preferredVoice = voices.find(v => v.lang === 'en-US') || 
                                  voices.find(v => v.lang.startsWith('en')) ||
-                                 voices[0];
+                                 voices[0]; // Fallback to system default
+                                 
           if (preferredVoice) u.voice = preferredVoice;
 
           u.volume = 1.0;

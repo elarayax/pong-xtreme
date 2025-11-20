@@ -53,7 +53,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-blue-600', 
     border: 'border-blue-800', 
     glow: 'shadow-blue-400',
-    img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c8/Sonic_the_Hedgehog_screen_shot.png/220px-Sonic_the_Hedgehog_screen_shot.png'
+    img: 'https://media.tenor.com/9yvXHMTiUcYAAAAj/sonic-the-hedgehog-dancing.gif'
   },
   batman: { 
     name: 'Dark Knight', 
@@ -69,7 +69,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-blue-600', 
     border: 'border-red-600', 
     glow: 'shadow-red-500',
-    img: 'https://upload.wikimedia.org/wikipedia/en/3/35/Supermanflying.png'
+    img: 'https://media.tenor.com/CMfiajknCOcAAAAM/evil-superman.gif'
   },
   ironman: { 
     name: 'Iron Tech', 
@@ -85,7 +85,7 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-white', 
     border: 'border-gray-800', 
     glow: 'shadow-white',
-    img: 'https://upload.wikimedia.org/wikipedia/en/0/04/Stormtrooper_2.jpg'
+    img: 'https://media.tenor.com/zcsiS7sOGrwAAAAM/501st-star-wars.gif'
   },
   saiyan: { 
     name: 'Saiyan God', 
@@ -117,6 +117,6 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-purple-100',
     border: 'border-purple-600',
     glow: 'shadow-purple-300',
-    img: 'https://e7.pngegg.com/pngimages/389/926/png-clipart-re-zero-%E2%88%92-starting-life-in-another-world-anime-chibi-manga-re-zero-starting-life-in-another-world-vol-1-light-novel-anime-purple-cg-artwork-thumbnail.png'
+    img: 'https://i.pinimg.com/originals/49/24/58/492458b6b07d19f6ccb1f15f2931b121.gif'
   }
 };
