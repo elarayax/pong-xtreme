@@ -213,11 +213,27 @@ const App: React.FC = () => {
 
   // --- AUDIO TEST FUNCTION ---
   const testAudio = () => {
+      // 1. TEST BEEP (Hardware Check)
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+      } catch(e) {
+          console.error("AudioContext Error:", e);
+      }
+
+      // 2. TEST VOICE
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
           window.speechSynthesis.cancel();
           
-          const u = new SpeechSynthesisUtterance("System Check. Audio Online.");
-          // EXPLICIT VOICE SELECTION for test
+          const u = new SpeechSynthesisUtterance("Audio Online.");
           const voices = window.speechSynthesis.getVoices();
           const preferredVoice = voices.find(v => v.lang === 'en-US') || 
                                  voices.find(v => v.lang.startsWith('en')) ||
@@ -228,15 +244,9 @@ const App: React.FC = () => {
           u.rate = 1.0;
           u.pitch = 1.0;
           window.speechSynthesis.speak(u);
-          
-          // Resume AudioContext
-          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-          const ctx = new AudioContext();
-          if (ctx.state === 'suspended') {
-              ctx.resume();
-          }
 
-          alert(`Audio Test Sent!\nVoices Detected: ${voices.length}\n(If 0, check browser settings)`);
+          // Friendly Success Message
+          alert(`✅ SUCCESS!\n\n1. You should have heard a BEEP.\n2. You should have heard a VOICE.\n\nVoices Detected: ${voices.length}\n\n(If you heard nothing, check your volume!)`);
       } else {
           alert("Your browser does not support Speech Synthesis.");
       }
@@ -251,7 +261,6 @@ const App: React.FC = () => {
               window.speechSynthesis.cancel(); 
 
               const u = new SpeechSynthesisUtterance("Poooooong... Xtreeeeeme!");
-              // EXPLICIT VOICE SELECTION for intro
               const voices = window.speechSynthesis.getVoices();
               const preferredVoice = voices.find(v => v.lang === 'en-US') || 
                                      voices.find(v => v.lang.startsWith('en')) ||
