@@ -33,7 +33,17 @@ const getEnvConfig = () => {
         } catch (e) {}
     }
 
-    return { binId, apiKey };
+    // 3. AUTO-FIX: Detect swapped keys (Common Mistake)
+    // JSONBin Master Keys usually start with "$2a$" (bcrypt hash format)
+    // Bin IDs are usually simple alphanumeric strings (e.g., 60d5f...)
+    if (binId.trim().startsWith('$2a$') && !apiKey.trim().startsWith('$2a$')) {
+         console.warn("Detected swapped JSONBin keys (Bin ID looked like API Key). Swapping automatically.");
+         const temp = binId;
+         binId = apiKey;
+         apiKey = temp;
+    }
+
+    return { binId: binId.trim(), apiKey: apiKey.trim() };
 };
 
 const { binId: JSONBIN_BIN_ID, apiKey: JSONBIN_API_KEY } = getEnvConfig();
@@ -44,22 +54,22 @@ const LOCAL_STORAGE_KEY = 'pongXtremeLeaderboard';
 const LeaderboardService = {
   // Helper to check if cloud config is valid
   isCloudConfigured() {
-    return JSONBIN_BIN_ID.trim().length > 0 && JSONBIN_API_KEY.trim().length > 0;
+    return JSONBIN_BIN_ID.length > 0 && JSONBIN_API_KEY.length > 0;
   },
 
   // Helper to construct URL only when needed
   getUrl() {
-    return `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID.trim()}`;
+    return `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
   },
 
   async get(): Promise<LeaderboardEntry[]> {
     // Cloud Mode
     if (this.isCloudConfigured()) {
       try {
+        // Remove Content-Type for GET requests to avoid preflight issues on some proxies
         const response = await fetch(this.getUrl(), {
           headers: {
-            'X-Master-Key': JSONBIN_API_KEY.trim(),
-            'Content-Type': 'application/json'
+            'X-Master-Key': JSONBIN_API_KEY
           }
         });
         
@@ -153,7 +163,7 @@ const LeaderboardService = {
         const response = await fetch(this.getUrl(), {
           method: 'PUT',
           headers: {
-            'X-Master-Key': JSONBIN_API_KEY.trim(),
+            'X-Master-Key': JSONBIN_API_KEY,
             'Content-Type': 'application/json'
             // 'X-Bin-Versioning': 'false' // Removed as it causes issues on some free plans
           },
@@ -359,6 +369,11 @@ const App: React.FC = () => {
   const p1Stats = getPlayerStats(player1Name);
   const p2Stats = getPlayerStats(player2Name);
 
+  // Diagnostics Checks
+  const isKeyFormatValid = JSONBIN_API_KEY.startsWith('$2a$');
+  const isDuplicate = JSONBIN_BIN_ID === JSONBIN_API_KEY && JSONBIN_BIN_ID.length > 0;
+  const apiKeyPreview = JSONBIN_API_KEY.length > 4 ? JSONBIN_API_KEY.substring(0, 4) + '...' : 'Empty';
+
   return (
     <div className="h-full w-full bg-gray-900 text-white flex flex-col items-center font-mono overflow-hidden">
       {/* Header Area */}
@@ -404,27 +419,46 @@ const App: React.FC = () => {
                     </h2>
                     
                     {/* CONNECTION DIAGNOSTICS */}
-                    <div className="w-full mb-4 p-2 rounded border text-xs flex items-center justify-between bg-gray-800 border-gray-700">
-                         <div className="flex items-center gap-2">
-                             <span>STATUS:</span>
-                             {connectionStatus.type === 'local' ? (
-                                 <span className="text-orange-400 font-bold flex items-center gap-1">🔴 LOCAL MODE</span>
-                             ) : connectionStatus.connected ? (
-                                 <span className="text-green-400 font-bold flex items-center gap-1">🟢 CLOUD CONNECTED</span>
-                             ) : (
-                                 <span className="text-red-400 font-bold flex items-center gap-1">❌ CONNECTION FAILED</span>
-                             )}
+                    <div className="w-full mb-4 p-2 rounded border text-xs flex flex-col gap-2 bg-gray-800 border-gray-700">
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span>STATUS:</span>
+                                {connectionStatus.type === 'local' ? (
+                                    <span className="text-orange-400 font-bold flex items-center gap-1">🔴 LOCAL MODE</span>
+                                ) : connectionStatus.connected ? (
+                                    <span className="text-green-400 font-bold flex items-center gap-1">🟢 CLOUD CONNECTED</span>
+                                ) : (
+                                    <span className="text-red-400 font-bold flex items-center gap-1">❌ CONNECTION FAILED</span>
+                                )}
+                            </div>
                          </div>
-                         <div className="text-[10px] text-gray-500 flex gap-2">
-                             {connectionStatus.type === 'local' ? 
-                                <span>Env Vars Missing (Use VITE_)</span> : 
-                                <span>ID: {JSONBIN_BIN_ID.substring(0,4)}...</span>
-                             }
-                         </div>
+                         
+                         {/* DETAILED DEBUG INFO */}
+                         {connectionStatus.type !== 'local' && (
+                            <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-gray-700 pt-2">
+                                <div className="flex flex-col">
+                                    <span className="text-gray-500">BIN ID:</span>
+                                    <span className="font-mono text-gray-300">{JSONBIN_BIN_ID.substring(0,6)}...</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-gray-500">API KEY START:</span>
+                                    <span className={`font-mono ${isKeyFormatValid ? 'text-green-400' : 'text-red-400'}`}>
+                                        {apiKeyPreview}
+                                    </span>
+                                    {!isKeyFormatValid && <span className="text-red-500 font-bold">⚠️ Invalid Format (Must start with $2a$)</span>}
+                                    {isDuplicate && <span className="text-red-500 font-bold">⚠️ DUPLICATE VALUES</span>}
+                                </div>
+                            </div>
+                         )}
                     </div>
                     {connectionStatus.error && (
                         <div className="w-full mb-4 p-2 bg-red-900/50 border border-red-500 text-red-200 text-xs rounded break-all">
                             <strong>Error:</strong> {connectionStatus.error}
+                            {connectionStatus.error.includes('401') && (
+                                <div className="mt-1 text-yellow-200 font-bold">
+                                    💡 FIX: Your API Key is wrong. Check Vercel env vars.
+                                </div>
+                            )}
                         </div>
                     )}
 
