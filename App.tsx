@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScoreBoard from './components/ScoreBoard';
 import GameBoard from './components/GameBoard';
@@ -214,8 +215,15 @@ const App: React.FC = () => {
   const testAudio = () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
           window.speechSynthesis.cancel();
-          const voices = window.speechSynthesis.getVoices();
+          
           const u = new SpeechSynthesisUtterance("System Check. Audio Online.");
+          // EXPLICIT VOICE SELECTION for test
+          const voices = window.speechSynthesis.getVoices();
+          const preferredVoice = voices.find(v => v.lang === 'en-US') || 
+                                 voices.find(v => v.lang.startsWith('en')) ||
+                                 voices[0];
+          if (preferredVoice) u.voice = preferredVoice;
+
           u.volume = 1.0;
           u.rate = 1.0;
           u.pitch = 1.0;
@@ -243,7 +251,14 @@ const App: React.FC = () => {
               window.speechSynthesis.cancel(); 
 
               const u = new SpeechSynthesisUtterance("Poooooong... Xtreeeeeme!");
-              u.pitch = 0.6; // Safe pitch
+              // EXPLICIT VOICE SELECTION for intro
+              const voices = window.speechSynthesis.getVoices();
+              const preferredVoice = voices.find(v => v.lang === 'en-US') || 
+                                     voices.find(v => v.lang.startsWith('en')) ||
+                                     voices[0];
+              if (preferredVoice) u.voice = preferredVoice;
+
+              u.pitch = 0.6; 
               u.rate = 0.8;  
               u.volume = 1.0;
               
