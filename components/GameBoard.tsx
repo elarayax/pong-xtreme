@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { GameState } from '../types';
 import { GAME_WIDTH, GAME_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, BALL_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT } from '../constants';
@@ -8,7 +7,7 @@ interface GameBoardProps {
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation, isNoScope } = gameState;
+  const { paddles, ball, blocks, countdown, nextBallDirection, isGameActive, winner, lastScorer, isPaused, boardRotation, isNoScope, isPongPoint } = gameState;
 
   return (
     <div 
@@ -84,6 +83,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
                    <div className="mb-4 animate-ping">
                        <h2 className="text-7xl font-black text-red-500 italic drop-shadow-[0_5px_5px_rgba(0,0,0,1)]" style={{ WebkitTextStroke: '2px white' }}>
                            NO SCOPE!
+                       </h2>
+                   </div>
+              ) : isPongPoint ? (
+                   <div className="mb-4">
+                       <h2 className="text-7xl font-bold text-green-400 animate-bounce drop-shadow-lg tracking-widest" style={{ fontFamily: '"VT323", monospace' }}>
+                           PONG POINT!
                        </h2>
                    </div>
               ) : (

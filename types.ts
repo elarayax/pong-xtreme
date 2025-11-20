@@ -1,4 +1,3 @@
-
 export interface Vector {
   x: number;
   y: number;
@@ -31,6 +30,7 @@ export interface GameState {
   isMasacre: boolean;
   isDramaticFinish: boolean; // New: For DBZ style finish
   isNoScope: boolean; // New: For trick shots
+  isPongPoint: boolean; // New: For points via blocks
   ballSpeed: number;
   rallyPaddleHits: number;
   countdown: number;
@@ -41,6 +41,10 @@ export interface GameState {
   mode: GameMode;
   lastHitter: 'player1' | 'player2' | null; // Track who hit ball last for No Scope
   currentPointWallHits: number; // Track bounces for No Scope
+  hitBlockInFlight: boolean; // Track if block was hit in current flight
+  hasSpeedThresholdMet: boolean; // Track if light speed audio played
+  hasElegantoPlayed: boolean; // Track if Eleganto audio played
+  hasYamerooPlayed: boolean; // Track if Yameroo audio played
 }
 
 export interface LeaderboardEntry {

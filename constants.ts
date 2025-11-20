@@ -1,4 +1,3 @@
-
 export const GAME_WIDTH = 800;
 export const GAME_HEIGHT = 600;
 
@@ -11,10 +10,14 @@ export const INITIAL_BALL_SPEED = 7;
 export const HARDCORE_INITIAL_BALL_SPEED = 10; // Faster start for hardcore mode
 export const BALL_SPEED_INCREMENT = 0.5;
 export const MAX_BALL_SPEED = 14; // Cap speed to slightly less than block width to prevent tunneling
+export const HIGH_SPEED_THRESHOLD = 12.5; // Speed at which "Light Speed" audio triggers
 
 // New Speed Logic
 export const RALLY_HITS_THRESHOLD = 5; // Start speeding up after 5 hits
 export const RALLY_HITS_INTERVAL = 2;  // Then speed up every 2 hits
+
+export const RALLY_ELEGANTO_THRESHOLD = 10; // Trigger for "Eleganto"
+export const RALLY_YAMEROO_THRESHOLD = 20; // Trigger for "Yameroo Freezer"
 
 export const MAX_BOUNCE_ANGLE = Math.PI / 4; // 45 degrees
 
