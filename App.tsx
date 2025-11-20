@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScoreBoard from './components/ScoreBoard';
 import GameBoard from './components/GameBoard';
@@ -6,18 +7,34 @@ import { LeaderboardEntry, GameMode } from './types';
 import { GAME_WIDTH, GAME_HEIGHT } from './constants';
 
 // --- CONFIGURATION FOR GLOBAL LEADERBOARD ---
-// SECURITY UPDATE: Robust Key Detection
-// We now check for both REACT_APP_ and VITE_ prefixes to support different build tools (CRA vs Vite).
+// SECURITY UPDATE: Vite & Vercel Support
+// 1. In Vercel, rename your variables to start with VITE_ (e.g., VITE_JSONBIN_BIN_ID)
+// 2. This code now prioritizes import.meta.env (Vite standard)
 
 const getEnvVar = (key: string) => {
-    // 1. Try Standard Process Env (CRA / Node)
-    if (process.env[`REACT_APP_${key}`]) return process.env[`REACT_APP_${key}`];
-    // 2. Try Vite Env (if available)
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[`VITE_${key}`]) {
-        return (import.meta as any).env[`VITE_${key}`];
+    // 1. Try Vite Standard (import.meta.env) - Priority
+    // Vite only exposes variables prefixed with VITE_ to the client for security.
+    try {
+        if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+            const viteKey = `VITE_${key}`;
+            const val = (import.meta as any).env[viteKey];
+            if (val) return val;
+        }
+    } catch (e) {
+        // Ignore errors if import.meta is not supported in environment
     }
-    // 3. Try direct process (rare)
-    if (process.env[key]) return process.env[key];
+
+    // 2. Try CRA / Node Standard (process.env)
+    // Fallback for older setups
+    try {
+        if (typeof process !== 'undefined' && process.env) {
+            const reactKey = `REACT_APP_${key}`;
+            if (process.env[reactKey]) return process.env[reactKey];
+            if (process.env[key]) return process.env[key];
+        }
+    } catch (e) {
+        // Ignore reference errors
+    }
     
     return '';
 };
@@ -52,7 +69,13 @@ const LeaderboardService = {
         
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Cloud Read Error (${response.status}): ${errorText.substring(0, 50)}`);
+            // Parse JSON error if possible to be cleaner
+            try {
+                const jsonError = JSON.parse(errorText);
+                throw new Error(`Cloud Error (${response.status}): ${jsonError.message || errorText}`);
+            } catch {
+                 throw new Error(`Cloud Error (${response.status}): ${errorText.substring(0, 50)}`);
+            }
         }
 
         const data = await response.json();
@@ -398,7 +421,7 @@ const App: React.FC = () => {
                          </div>
                          <div className="text-[10px] text-gray-500 flex gap-2">
                              {connectionStatus.type === 'local' ? 
-                                <span>Env Vars Missing (Checked REACT_APP_ & VITE_)</span> : 
+                                <span>Env Vars Missing (Use VITE_)</span> : 
                                 <span>ID: {JSONBIN_BIN_ID.substring(0,4)}...</span>
                              }
                          </div>
