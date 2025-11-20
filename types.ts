@@ -30,7 +30,8 @@ export type SkinType =
   | 'stormtrooper' 
   | 'saiyan' 
   | 'mando' 
-  | 'panda';
+  | 'panda'
+  | 'emilia';
 
 export interface GameState {
   paddles: { left: Paddle; right: Paddle };
@@ -38,7 +39,7 @@ export interface GameState {
   blocks: Block[];
   score: { player1: number; player2: number };
   playerNames: { player1: string; player2: string };
-  skins: { player1: SkinType; player2: SkinType }; // New: Track selected skins
+  skins: { player1: SkinType; player2: SkinType }; 
   isGameActive: boolean;
   isPaused: boolean;
   winner: string | null;
@@ -46,6 +47,10 @@ export interface GameState {
   isDramaticFinish: boolean;
   isNoScope: boolean;
   isPongPoint: boolean;
+  isTsukuyomi: boolean; // 3 wins in a row
+  isMagicWin: boolean; // 5-3 score
+  isNearMiss: boolean; // 5-1 score
+  isRemontada: boolean; // New: Won when opponent had >= 4 points (Re:Zero)
   ballSpeed: number;
   rallyPaddleHits: number;
   countdown: number;

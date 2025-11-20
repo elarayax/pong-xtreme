@@ -485,13 +485,47 @@ const App: React.FC = () => {
               <div className="absolute inset-0 bg-black bg-opacity-85 flex flex-col items-center justify-center text-center p-4 z-40 backdrop-blur-sm">
                 {gameState.winner ? (
                   <>
-                    {gameState.isMasacre ? (
+                    {gameState.isTsukuyomi ? (
+                        <div className="mb-4 flex flex-col items-center">
+                           <div className="w-32 h-32 mb-4 animate-spin-slow">
+                              <img 
+                                src="https://c0.klipartz.com/pngpicture/659/292/gratis-png-el-logotipo-del-tsukuyomi-infinito-sasuke-uchiha-madara-uchiha-orochimaru-uchiha-clan-sharingan-naruto.png" 
+                                alt="Tsukuyomi"
+                                className="w-full h-full object-contain drop-shadow-[0_0_15px_red]"
+                              />
+                           </div>
+                           <h2 className="text-4xl font-black text-red-600 tracking-widest uppercase drop-shadow-lg mb-2 text-center" style={{ fontFamily: '"Bangers", system-ui' }}>
+                              CAISTE EN EL TSUKUYOMI INFINITO
+                           </h2>
+                        </div>
+                    ) : gameState.isMasacre ? (
                        <div className="mb-4 animate-pulse">
                           <h2 className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-400 via-orange-500 to-red-600 drop-shadow-2xl" style={{ fontFamily: '"Bangers", system-ui' }}>
                             MASACRE!
                           </h2>
                           <p className="text-3xl text-red-500 font-bold mt-2 uppercase tracking-widest">Perfection</p>
                        </div>
+                    ) : gameState.isRemontada ? (
+                        <div className="mb-4 animate-fade-in">
+                           <h2 className="text-4xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(192,132,252,0.8)]" style={{ fontFamily: '"Cinzel", serif' }}>
+                              UNA VICTORIA DESDE EL PRINCIPIO...
+                           </h2>
+                           <p className="text-2xl text-purple-300 italic" style={{ fontFamily: '"Cinzel", serif' }}>
+                              NO, DESDE CERO.
+                           </p>
+                        </div>
+                    ) : gameState.isMagicWin ? (
+                        <div className="mb-4 animate-bounce">
+                            <h2 className="text-7xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.8)]" style={{ fontFamily: '"Bangers", system-ui' }}>
+                                ✨ MAGIC WIN! ✨
+                            </h2>
+                        </div>
+                    ) : gameState.isNearMiss ? (
+                        <div className="mb-4">
+                            <h2 className="text-6xl font-bold text-gray-300 italic" style={{ fontFamily: '"Bangers", system-ui' }}>
+                                "CASI TE GANO..."
+                            </h2>
+                        </div>
                     ) : gameState.isDramaticFinish ? (
                         <div className="mb-4">
                            <h2 className="text-7xl font-black text-black drop-shadow-[0_5px_0_rgba(255,215,0,1)]" 

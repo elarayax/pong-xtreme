@@ -20,7 +20,7 @@ export const RALLY_YAMEROO_THRESHOLD = 20;
 
 export const MAX_BOUNCE_ANGLE = Math.PI / 4;
 
-export const BLOCK_WIDTH = 20; // Changed to 20 (even number) for perfect centering
+export const BLOCK_WIDTH = 20; 
 export const BLOCK_HEIGHT = 40;
 export const POINTS_TO_START_BLOCKS = 2;
 export const MAX_BLOCKS_ON_SCREEN = 5;
@@ -34,7 +34,6 @@ export const AVAILABLE_SKINS = {
   default: { 
     name: 'Classic', 
     icon: '', 
-    // Colors handled dynamically based on side (Blue/Red) if default
     bg: null, 
     border: null, 
     glow: null 
@@ -101,5 +100,12 @@ export const AVAILABLE_SKINS = {
     bg: 'bg-white', 
     border: 'border-black', 
     glow: 'shadow-white' 
+  },
+  emilia: {
+    name: 'Emilia-tan',
+    icon: '❄️',
+    bg: 'bg-purple-100',
+    border: 'border-purple-600',
+    glow: 'shadow-purple-300'
   }
 };
