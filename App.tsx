@@ -116,7 +116,21 @@ const LeaderboardService = {
         currentList = this.getLocal();
     }
     
-    const updatedList = [...currentList, newEntry]
+    // Check if user already exists
+    const existingIndex = currentList.findIndex(e => e.name.toUpperCase() === newEntry.name.toUpperCase());
+
+    if (existingIndex !== -1) {
+        // User exists, check if new score is higher
+        if (newEntry.score > currentList[existingIndex].score) {
+             currentList[existingIndex] = newEntry; // Update with new high score
+        }
+        // If new score is lower, we do nothing (keep the high score)
+    } else {
+        // New user
+        currentList.push(newEntry);
+    }
+
+    const updatedList = currentList
       .sort((a, b) => b.score - a.score)
       .slice(0, 10); 
 
@@ -156,6 +170,30 @@ const LeaderboardService = {
     }
     
     return updatedList;
+  },
+
+  // --- NEW RESET FUNCTIONALITY ---
+  async reset(): Promise<void> {
+      const emptyList: any[] = [];
+      
+      if (this.isCloudConfigured()) {
+          try {
+              const payload = { users: [] };
+              await fetch(this.getUrl(), {
+                  method: 'PUT',
+                  headers: {
+                      'X-Master-Key': JSONBIN_API_KEY,
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(payload)
+              });
+          } catch (e) {
+              console.error("Failed to reset cloud", e);
+              throw e;
+          }
+      }
+      this.saveLocal([]);
+      return;
   },
 
   getLocal(): LeaderboardEntry[] {
@@ -310,6 +348,18 @@ const App: React.FC = () => {
     }
   };
 
+  const handleResetLeaderboard = async () => {
+      if (window.confirm("ARE YOU SURE? This will wipe all global scores permanently.")) {
+          try {
+              await LeaderboardService.reset();
+              setLeaderboard([]);
+              alert("Database cleared.");
+          } catch (e) {
+              alert("Failed to reset database.");
+          }
+      }
+  };
+
   const finalScore = calculateScore();
 
   const getPlayerStats = (name: string) => {
@@ -455,12 +505,20 @@ const App: React.FC = () => {
                         </table>
                     )}
                     
-                    <button 
-                        onClick={() => setShowLeaderboard(false)}
-                        className="mt-auto mb-2 px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white font-bold uppercase"
-                    >
-                        Close
-                    </button>
+                    <div className="mt-auto w-full flex justify-between items-center">
+                        <button 
+                            onClick={handleResetLeaderboard}
+                            className="px-3 py-1 bg-red-900 hover:bg-red-700 text-red-200 text-[10px] rounded border border-red-800 uppercase tracking-wider"
+                        >
+                            ⚠ Reset Data
+                        </button>
+                        <button 
+                            onClick={() => setShowLeaderboard(false)}
+                            className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white font-bold uppercase"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
             )}
 
