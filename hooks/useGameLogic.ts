@@ -37,6 +37,31 @@ const getAudioContext = () => {
     return audioCtx;
 };
 
+// Helper to ensure voices are loaded (Chrome quirk)
+const getVoices = (): Promise<SpeechSynthesisVoice[]> => {
+    return new Promise((resolve) => {
+        let voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            resolve(voices);
+            return;
+        }
+        
+        // If empty, wait for the event
+        window.speechSynthesis.onvoiceschanged = () => {
+            voices = window.speechSynthesis.getVoices();
+            resolve(voices);
+        };
+        
+        // Fallback timeout in case event never fires
+        setTimeout(() => resolve([]), 1000);
+    });
+};
+
+// Pre-fetch voices globally to warm up the browser cache
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    getVoices().then(() => console.log("Voices warmed up"));
+}
+
 const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre' | 'noscope' | 'dramatic' | 'lightspeed' | 'pongpoint' | 'eleganto' | 'yameroo' | 'tsukuyomi' | 'explosion' | 'casi' | 'remontada' | 'sonicboom', extraData?: string) => {
   const ctx = getAudioContext();
   
@@ -104,8 +129,11 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         // Cancel any ongoing speech to prioritize game events
         window.speechSynthesis.cancel();
 
-        const voices = window.speechSynthesis.getVoices();
-        const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+        // Fetch voices synchronously (should be loaded by now due to global warmup) but fallback safely
+        let voices = window.speechSynthesis.getVoices();
+        
+        // Fallback logic
+        const englishVoice = voices.find(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-GB')) || voices[0];
         const japanVoice = voices.find(v => v.lang.startsWith('ja')); 
         const esVoice = voices.find(v => v.lang.startsWith('es'));
 
@@ -113,7 +141,7 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         let u1 = new SpeechSynthesisUtterance();
         
         // Default config
-        u1.voice = englishVoice;
+        u1.voice = englishVoice; // Default to English/System
         u1.rate = 0.9;
         u1.pitch = 0.6;
         u1.volume = 1.0;
@@ -176,7 +204,14 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         }
 
         u1.text = text;
-        window.speechSynthesis.speak(u1);
+        
+        // Final safety check before speaking
+        if (u1.voice) {
+            window.speechSynthesis.speak(u1);
+        } else {
+            // Last resort if no voice object matches
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+        }
     }
   }
 };
@@ -240,12 +275,17 @@ export const useGameLogic = () => {
   }, [gameState]);
 
   const startGame = useCallback((mode: GameMode = 'classic', p1Name: string, p2Name: string, p1Skin: SkinType, p2Skin: SkinType) => {
+    // 1. Resume Audio Context
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
         ctx.resume().catch(() => {});
     }
+    
+    // 2. Resume/Load Speech Synthesis
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.getVoices();
+        // This acts as a "user gesture" to unlock speech on mobile/safari
+        window.speechSynthesis.cancel(); 
+        getVoices(); // Trigger voice loading
     }
 
     const startDir = Math.random() > 0.5 ? 1 : -1;
