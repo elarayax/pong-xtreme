@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GameState, Block, GameMode, SkinType } from '../types';
 import {
@@ -30,7 +29,7 @@ import {
 // Sound Utility - Lazy Initialization
 let audioCtx: AudioContext | null = null;
 
-// CRITICAL FIX: Keep a reference to the active utterance to prevent Chrome Garbage Collection from stopping audio
+// Global reference to prevent Garbage Collection
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 
 const getAudioContext = () => {
@@ -43,7 +42,7 @@ const getAudioContext = () => {
 const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre' | 'noscope' | 'dramatic' | 'lightspeed' | 'pongpoint' | 'eleganto' | 'yameroo' | 'tsukuyomi' | 'explosion' | 'casi' | 'remontada' | 'sonicboom', extraData?: string) => {
   const ctx = getAudioContext();
   
-  // Audio Context for SFX (Beeps and Boops)
+  // 1. SFX (Beeps)
   if (ctx) {
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
@@ -93,112 +92,93 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         oscillator.start(now);
         oscillator.stop(now + 0.3);
         break;
-      default:
-        // Silence the synth fanfare for special events, only voice will play below
-        break;
     }
   }
 
-  // Text To Speech
+  // 2. TTS (Voices) - ROBUST IMPLEMENTATION
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     const isSpecial = ['win', 'masacre', 'noscope', 'dramatic', 'lightspeed', 'pongpoint', 'eleganto', 'yameroo', 'tsukuyomi', 'explosion', 'casi', 'remontada', 'sonicboom'].includes(type);
     
     if (isSpecial) {
-        // Ensure system is not paused
+        // Force resume if browser auto-paused it
         if (window.speechSynthesis.paused) {
             window.speechSynthesis.resume();
         }
-        // Cancel ongoing to prioritize new event
+        
+        // Hard cancel previous to clear queue
         window.speechSynthesis.cancel();
 
-        // Get voices synchronously. If empty array, we proceed anyway (system default will be used)
         const voices = window.speechSynthesis.getVoices();
         
-        const englishVoice = voices.find(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-GB')) || null; // null allows browser default
-        const japanVoice = voices.find(v => v.lang.startsWith('ja')); 
-        const esVoice = voices.find(v => v.lang.startsWith('es'));
+        // Simplified Voice Selection - Fallback to Default if not found
+        // This prevents the code from crashing if a specific language isn't installed
+        const englishVoice = voices.find(v => v.lang.includes('en')) || null;
+        const japanVoice = voices.find(v => v.lang.includes('ja')) || null; 
+        const esVoice = voices.find(v => v.lang.includes('es')) || null;
 
-        let text = "";
-        
-        // Create new utterance
         const u = new SpeechSynthesisUtterance();
         
-        // Default config
-        if (englishVoice) u.voice = englishVoice;
-        u.rate = 0.9;
-        u.pitch = 0.6;
-        u.volume = 1.0;
+        // Default settings
+        u.volume = 1.0; 
+        u.rate = 1.0;
+        u.pitch = 1.0;
+
+        let text = "";
 
         if (type === 'masacre') {
             text = `MASACRE! ... ${extraData} Wins`;
-            u.pitch = 0.4; 
+            u.pitch = 0.5; 
+            u.rate = 0.9;
         } else if (type === 'tsukuyomi') {
             text = `Caiste en el Tsukuyomi Infinito ... ${extraData} Wins`;
             u.pitch = 0.1; 
             u.rate = 0.8; 
-            if (esVoice) u.voice = esVoice;
-            else if (japanVoice) u.voice = japanVoice;
+            if (esVoice) u.voice = esVoice; // Prefer Spanish for this one if avail
         } else if (type === 'remontada') {
             text = `Una victoria desde el principio, no, desde cero ... ${extraData} Wins`;
-            u.pitch = 1.1; 
-            u.rate = 0.85; 
             if (esVoice) u.voice = esVoice;
         } else if (type === 'explosion') {
             text = `EXPLOOOOOSION!! ... ${extraData} Wins`;
-            u.pitch = 1.4; // High pitch like Megumin
-            u.rate = 1.0;
+            u.pitch = 1.5;
         } else if (type === 'sonicboom') {
             text = `SONIC BOOM! ... ${extraData} Wins`;
-            u.pitch = 1.2; 
-            u.rate = 1.4; // Fast
+            u.rate = 1.5;
         } else if (type === 'casi') {
             text = `Casi te gano! ... ${extraData} Wins`; 
-            u.pitch = 1.2; 
-            u.rate = 1.1;
             if (esVoice) u.voice = esVoice;
         } else if (type === 'dramatic') {
             text = `DRAMATIC FINISH! ... ${extraData} Wins`;
             u.pitch = 0.2; 
             u.rate = 0.6; 
         } else if (type === 'noscope') {
-            text = "NO SCOPE!"; // Mid-game, don't say winner yet
+            text = "NO SCOPE!";
             u.pitch = 1.5; 
             u.rate = 1.2;
         } else if (type === 'pongpoint') {
             text = "PONG POINT!";
             u.pitch = 0.1; 
-            u.rate = 1.1;
         } else if (type === 'lightspeed') {
             text = "Light speedo!!";
             u.pitch = 1.4; 
-            u.rate = 1.4;
+            u.rate = 1.3;
         } else if (type === 'eleganto') {
             text = "Elegan-to!";
-            u.pitch = 0.8; 
             if (japanVoice) u.voice = japanVoice; 
         } else if (type === 'yameroo') {
             text = "Yameroo Freeza!";
-            u.pitch = 1.2; 
-            u.rate = 1.1;
             if (japanVoice) u.voice = japanVoice; 
         } else {
             // NORMAL WIN
             text = `${extraData} Wins`;
+            if (englishVoice) u.voice = englishVoice;
         }
 
         u.text = text;
-        
-        // Prevent GC by assigning to global variable
-        activeUtterance = u;
-        
-        u.onend = () => {
-            activeUtterance = null; // Clean up ref when done
-        };
 
-        u.onerror = (e) => {
-            console.error("Speech error:", e);
-            activeUtterance = null;
-        };
+        // Global Ref Hack to prevent Garbage Collection
+        activeUtterance = u;
+        u.onend = () => { activeUtterance = null; };
+        u.onerror = (e) => { console.error("TTS Error:", e); };
 
         window.speechSynthesis.speak(u);
     }
@@ -253,7 +233,7 @@ interface MatchResult {
 }
 
 export const useGameLogic = () => {
-  const [gameState, setGameState] = useState<GameState>(createInitialState());
+  const [gameState, setGameState] = useState<GameState>(createInitialState('classic'));
   const keysPressed = useRef<Record<string, boolean>>({});
   const animationFrameId = useRef<number>();
   const matchHistory = useRef<MatchResult[]>([]); 
@@ -264,21 +244,19 @@ export const useGameLogic = () => {
   }, [gameState]);
 
   const startGame = useCallback((mode: GameMode = 'classic', p1Name: string, p2Name: string, p1Skin: SkinType, p2Skin: SkinType) => {
-    // 1. Resume Audio Context
+    // 1. Resume Audio Context (User Gesture)
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
         ctx.resume().catch(() => {});
     }
     
-    // 2. Unblock Speech Synthesis (User Gesture)
+    // 2. SILENT UNLOCK FOR TTS (Crucial!)
+    // This forces the browser to recognize we want to play audio, unlocking the engine for the game loop later.
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        if (window.speechSynthesis.paused) {
-            window.speechSynthesis.resume();
-        }
         window.speechSynthesis.cancel();
-        // Force a silent utterance to wake up the engine
-        const wakeUp = new SpeechSynthesisUtterance('');
-        window.speechSynthesis.speak(wakeUp);
+        const unlock = new SpeechSynthesisUtterance('');
+        unlock.volume = 0; 
+        window.speechSynthesis.speak(unlock);
     }
 
     const startDir = Math.random() > 0.5 ? 1 : -1;
@@ -340,7 +318,6 @@ export const useGameLogic = () => {
                 y: 0 
              };
              lastScorer = null;
-             // Reset scorer ID when round starts so image disappears
              prev.lastScorerId = null; 
              isNoScope = false;
              isPongPoint = false;
@@ -351,7 +328,7 @@ export const useGameLogic = () => {
             countdown: newCount,
             ball: newBall,
             lastScorer,
-            lastScorerId: prev.lastScorerId, // Ensure we keep it null if reset above
+            lastScorerId: prev.lastScorerId,
             isNoScope,
             isPongPoint
           };
@@ -676,7 +653,7 @@ export const useGameLogic = () => {
           }
       }
 
-      let isGameActive = prev.isGameActive;
+      let isGameActive: boolean = prev.isGameActive;
       const scoreDiff = Math.abs(score.player1 - score.player2);
       
       if ((score.player1 >= BASE_WINNING_SCORE || score.player2 >= BASE_WINNING_SCORE) && scoreDiff >= WIN_BY_MARGIN) {

@@ -217,6 +217,27 @@ const App: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasPlayedIntroRef = useRef(false);
 
+  // --- AUDIO TEST FUNCTION ---
+  const testAudio = () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance("System Check. Audio Online.");
+          u.volume = 1.0;
+          u.rate = 1.0;
+          u.pitch = 1.0;
+          window.speechSynthesis.speak(u);
+          
+          // Also resume AudioContext
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioContext();
+          if (ctx.state === 'suspended') {
+              ctx.resume();
+          }
+      } else {
+          alert("Your browser does not support Speech Synthesis.");
+      }
+  };
+
   // INTRO AUDIO EFFECT
   useEffect(() => {
       const playIntro = () => {
@@ -433,12 +454,20 @@ const App: React.FC = () => {
         <p className="text-gray-400 text-[10px]">Chaotic Arcade Pong</p>
         
         {!gameState.isGameActive && !gameState.winner && (
-           <button 
-             onClick={() => setShowLeaderboard(!showLeaderboard)}
-             className="absolute right-4 top-1/2 -translate-y-1/2 text-xs border border-yellow-500 text-yellow-400 px-3 py-1 rounded hover:bg-yellow-500 hover:text-black transition-colors flex items-center gap-1"
-           >
-             🏆 RANK
-           </button>
+           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
+               <button 
+                 onClick={testAudio}
+                 className="text-xs border border-green-500 text-green-400 px-3 py-1 rounded hover:bg-green-500 hover:text-black transition-colors"
+               >
+                 🔊 TEST VOICE
+               </button>
+               <button 
+                 onClick={() => setShowLeaderboard(!showLeaderboard)}
+                 className="text-xs border border-yellow-500 text-yellow-400 px-3 py-1 rounded hover:bg-yellow-500 hover:text-black transition-colors flex items-center gap-1"
+               >
+                 🏆 RANK
+               </button>
+           </div>
         )}
       </header>
       
