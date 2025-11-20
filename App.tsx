@@ -7,23 +7,17 @@ import { LeaderboardEntry, GameMode, SkinType } from './types';
 import { GAME_WIDTH, GAME_HEIGHT, AVAILABLE_SKINS } from './constants';
 
 // --- CONFIGURATION FOR GLOBAL LEADERBOARD ---
-// CRITICAL FIX: Explicit access to variables is required for Vite to bundle them correctly.
-// Dynamic access (e.g. env[key]) fails in production builds.
-
 const getEnvConfig = () => {
     let binId = '';
     let apiKey = '';
 
-    // 1. Try Vite (import.meta.env) - EXPLICIT ACCESS
     try {
         if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-            // We must access these properties directly for Vite's define replacement to work
             binId = (import.meta as any).env.VITE_JSONBIN_BIN_ID || '';
             apiKey = (import.meta as any).env.VITE_JSONBIN_API_KEY || '';
         }
     } catch (e) {}
 
-    // 2. Fallback to process.env (CRA/Node) - EXPLICIT ACCESS
     if (!binId || !apiKey) {
         try {
             if (typeof process !== 'undefined' && process.env) {
@@ -33,9 +27,6 @@ const getEnvConfig = () => {
         } catch (e) {}
     }
 
-    // 3. AUTO-FIX: Detect swapped keys (Common Mistake)
-    // JSONBin Master Keys usually start with "$2a$" (bcrypt hash format)
-    // Bin IDs are usually simple alphanumeric strings (e.g., 60d5f...)
     if (binId.trim().startsWith('$2a$') && !apiKey.trim().startsWith('$2a$')) {
          console.warn("Detected swapped JSONBin keys (Bin ID looked like API Key). Swapping automatically.");
          const temp = binId;
@@ -52,21 +43,17 @@ const LOCAL_STORAGE_KEY = 'pongXtremeLeaderboard';
 
 // --- LEADERBOARD SERVICE ---
 const LeaderboardService = {
-  // Helper to check if cloud config is valid
   isCloudConfigured() {
     return JSONBIN_BIN_ID.length > 0 && JSONBIN_API_KEY.length > 0;
   },
 
-  // Helper to construct URL only when needed
   getUrl() {
     return `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
   },
 
   async get(): Promise<LeaderboardEntry[]> {
-    // Cloud Mode
     if (this.isCloudConfigured()) {
       try {
-        // Remove Content-Type for GET requests to avoid preflight issues on some proxies
         const response = await fetch(this.getUrl(), {
           headers: {
             'X-Master-Key': JSONBIN_API_KEY
@@ -75,7 +62,6 @@ const LeaderboardService = {
         
         if (!response.ok) {
             const errorText = await response.text();
-            // Parse JSON error if possible to be cleaner
             try {
                 const jsonError = JSON.parse(errorText);
                 throw new Error(`Cloud Error (${response.status}): ${jsonError.message || errorText}`);
@@ -85,31 +71,24 @@ const LeaderboardService = {
         }
 
         const data = await response.json();
-        
         let rawList: any[] = [];
         
-        // ROBUST PARSING STRATEGY
         if (Array.isArray(data.record)) {
-            // Case 1: Root array
             rawList = data.record;
         } else if (data.record && Array.isArray(data.record.users)) {
-            // Case 2: Wrapped in 'users' (User's custom structure)
-            // We need to map 'user' field to 'name' if 'name' is missing
             rawList = data.record.users.map((u: any) => ({
                 ...u,
-                name: u.name || u.user || 'Unknown', // Map 'user' to 'name'
-                score: u.score || (u.wins ? u.wins * 100 : 0) // Fallback score if using custom structure
+                name: u.name || u.user || 'Unknown', 
+                score: u.score || (u.wins ? u.wins * 100 : 0) 
             }));
         }
 
-        // VALIDATION & SANITIZATION
         const cleanData = rawList.filter((item: any) => 
             typeof item === 'object' && 
             item !== null &&
             (typeof item.name === 'string' || typeof item.user === 'string') && 
             typeof item.score === 'number'
         ).map((item: any) => ({
-            // Normalize data structure
             name: item.name || item.user,
             score: item.score,
             mode: item.mode || 'classic',
@@ -121,38 +100,31 @@ const LeaderboardService = {
 
       } catch (error) {
         console.warn("Cloud fetch error:", error);
-        throw error; // Propagate error for UI diagnostics
+        throw error; 
       }
     }
-    // Local Mode
     return this.getLocal();
   },
 
   async save(newEntry: LeaderboardEntry): Promise<LeaderboardEntry[]> {
-    // 1. Get latest data first
     let currentList: LeaderboardEntry[] = [];
     try {
-        // We use get() logic but catch error here to allow offline saving if cloud is down
         currentList = await this.get();
         if (!Array.isArray(currentList)) currentList = [];
     } catch (e) {
         console.log("Could not fetch latest for save, starting with empty or local");
-        // Try local as fallback for base
         currentList = this.getLocal();
     }
     
-    // 2. Process List
     const updatedList = [...currentList, newEntry]
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10); // Keep top 10
+      .slice(0, 10); 
 
-    // 3. Save Cloud
     if (this.isCloudConfigured()) {
       try {
-        // Map 'name' to 'user' to match the user's requested structure
         const payload = { 
             users: updatedList.map(entry => ({
-                user: entry.name,  // Rename 'name' to 'user' for JSONBin
+                user: entry.name,  
                 score: entry.score,
                 mode: entry.mode,
                 isMasacre: entry.isMasacre,
@@ -165,7 +137,6 @@ const LeaderboardService = {
           headers: {
             'X-Master-Key': JSONBIN_API_KEY,
             'Content-Type': 'application/json'
-            // 'X-Bin-Versioning': 'false' // Removed as it causes issues on some free plans
           },
           body: JSON.stringify(payload)
         });
@@ -178,7 +149,7 @@ const LeaderboardService = {
       } catch (error) {
         console.error("Cloud save error:", error);
         this.saveLocal(updatedList);
-        throw error; // Re-throw to notify UI
+        throw error; 
       }
     } else {
         this.saveLocal(updatedList);
@@ -217,17 +188,14 @@ const App: React.FC = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<{connected: boolean, type: 'cloud' | 'local', error?: string}>({ connected: true, type: 'local' });
   
-  // Input State for Pre-game
   const [player1Name, setPlayer1Name] = useState('PLAYER 1');
   const [player2Name, setPlayer2Name] = useState('PLAYER 2');
   const [player1Skin, setPlayer1Skin] = useState<SkinType>('default');
   const [player2Skin, setPlayer2Skin] = useState<SkinType>('default');
   
-  // Scaling State
   const [gameScale, setGameScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Improved Scale Calculation Logic using ResizeObserver
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -235,16 +203,14 @@ const App: React.FC = () => {
         for (const entry of entries) {
             const { width, height } = entry.contentRect;
             
-            // Padding safety
             const availableWidth = width - 20;
             const availableHeight = height - 20;
 
             const scaleX = availableWidth / GAME_WIDTH;
             const scaleY = availableHeight / GAME_HEIGHT;
 
-            // Use the smallest scale to fit, max 1.5
             const newScale = Math.min(scaleX, scaleY, 1.5);
-            setGameScale(Math.max(newScale, 0.2)); // Min scale to prevent disappearance
+            setGameScale(Math.max(newScale, 0.2)); 
         }
     });
 
@@ -252,7 +218,6 @@ const App: React.FC = () => {
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Load leaderboard
   const loadLeaderboard = useCallback(async () => {
     setIsLoadingLeaderboard(true);
     
@@ -262,7 +227,6 @@ const App: React.FC = () => {
             setLeaderboard(Array.isArray(data) ? data : []);
             setConnectionStatus({ connected: true, type: 'cloud' });
         } catch (e: any) {
-            // Fallback to local display but show error
             const localData = LeaderboardService.getLocal();
             setLeaderboard(localData);
             setConnectionStatus({ connected: false, type: 'cloud', error: e.message });
@@ -277,19 +241,16 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     loadLeaderboard();
   }, [loadLeaderboard]);
 
-  // Refresh leaderboard when opening it
   useEffect(() => {
       if (showLeaderboard) {
           loadLeaderboard();
       }
   }, [showLeaderboard, loadLeaderboard]);
 
-  // Reset submission state when a new game starts
   useEffect(() => {
     if (gameState.isGameActive) {
       setScoreSubmitted(false);
@@ -342,9 +303,8 @@ const App: React.FC = () => {
         setScoreSubmitted(true);
         setShowLeaderboard(true);
     } catch (e: any) {
-        // Show error UI
         setSaveError(e.message || 'Unknown error');
-        setScoreSubmitted(true); // Technically saved locally, but warn user
+        setScoreSubmitted(true); 
     } finally {
         setIsSubmitting(false);
     }
@@ -352,7 +312,6 @@ const App: React.FC = () => {
 
   const finalScore = calculateScore();
 
-  // Helper to get stats for a specific player name from leaderboard
   const getPlayerStats = (name: string) => {
       if (!name || name.trim() === '') return null;
       const cleanName = name.trim().toUpperCase();
@@ -373,7 +332,6 @@ const App: React.FC = () => {
 
   return (
     <div className="h-full w-full bg-gray-900 text-white flex flex-col items-center font-mono overflow-hidden">
-      {/* Header Area */}
       <header className="shrink-0 w-full flex flex-col items-center justify-center py-2 relative z-10 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800">
         <h1 className="text-3xl md:text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-red-400 cursor-pointer drop-shadow-lg" onClick={() => setShowLeaderboard(false)}>
           PONG XTREME
@@ -390,14 +348,11 @@ const App: React.FC = () => {
         )}
       </header>
       
-      {/* Scoreboard */}
       <div className="shrink-0 w-full flex justify-center py-2 z-10">
           <ScoreBoard score={gameState.score} playerNames={gameState.playerNames} />
       </div>
 
-      {/* Game Container - Fills remaining space and scales content */}
       <div ref={containerRef} className="flex-1 w-full flex items-center justify-center relative overflow-hidden p-2">
-         {/* Scalable Wrapper */}
          <div 
             style={{ 
                 width: GAME_WIDTH, 
@@ -408,14 +363,12 @@ const App: React.FC = () => {
          >
             <GameBoard gameState={gameState} />
             
-            {/* Leaderboard Overlay */}
             {showLeaderboard && !gameState.isGameActive && (
                 <div className="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center p-6 overflow-y-auto border-4 border-yellow-600 rounded-lg shadow-2xl">
                     <h2 className="text-4xl font-bold text-yellow-400 mb-2 uppercase tracking-widest border-b-4 border-yellow-500 pb-2" style={{ fontFamily: '"Bangers", system-ui' }}>
                         HALL OF FAME
                     </h2>
                     
-                    {/* CONNECTION DIAGNOSTICS - SIMPLIFIED */}
                     <div className="w-full mb-4 p-2 rounded border text-xs flex flex-col gap-2 bg-gray-800 border-gray-700">
                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -480,7 +433,6 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* Game Over / Start Screen Overlay */}
             {(!gameState.isGameActive || gameState.winner) && !showLeaderboard && (
               <div className="absolute inset-0 bg-black bg-opacity-85 flex flex-col items-center justify-center text-center p-4 z-40 backdrop-blur-sm">
                 {gameState.winner ? (
@@ -494,7 +446,7 @@ const App: React.FC = () => {
                                 className="w-full h-full object-contain drop-shadow-[0_0_15px_red]"
                               />
                            </div>
-                           <h2 className="text-4xl font-black text-red-600 tracking-widest uppercase drop-shadow-lg mb-2 text-center" style={{ fontFamily: '"Bangers", system-ui' }}>
+                           <h2 className="text-4xl font-black text-red-600 tracking-widest uppercase drop-shadow-lg mb-2 text-center" style={{ fontFamily: '"Shojumaru", system-ui' }}>
                               CAISTE EN EL TSUKUYOMI INFINITO
                            </h2>
                         </div>
@@ -505,6 +457,17 @@ const App: React.FC = () => {
                           </h2>
                           <p className="text-3xl text-red-500 font-bold mt-2 uppercase tracking-widest">Perfection</p>
                        </div>
+                    ) : gameState.isSonicBoom ? (
+                       <div className="mb-4 animate-pulse flex flex-col items-center">
+                          <h2 className="text-8xl font-black italic text-blue-600 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" 
+                              style={{ 
+                                  fontFamily: '"Russo One", sans-serif',
+                                  WebkitTextStroke: '3px white',
+                                  transform: 'skew(-10deg)'
+                              }}>
+                            SONIC BOOM!
+                          </h2>
+                       </div>
                     ) : gameState.isRemontada ? (
                         <div className="mb-4 animate-fade-in">
                            <h2 className="text-4xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(192,132,252,0.8)]" style={{ fontFamily: '"Cinzel", serif' }}>
@@ -514,15 +477,26 @@ const App: React.FC = () => {
                               NO, DESDE CERO.
                            </p>
                         </div>
-                    ) : gameState.isMagicWin ? (
+                    ) : gameState.isExplosion ? (
                         <div className="mb-4 animate-bounce">
-                            <h2 className="text-7xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.8)]" style={{ fontFamily: '"Bangers", system-ui' }}>
-                                ✨ MAGIC WIN! ✨
+                            <h2 className="text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 drop-shadow-[0_5px_0_rgba(0,0,0,1)]" 
+                                style={{ 
+                                    fontFamily: '"Luckiest Guy", cursive',
+                                    WebkitTextStroke: '2px black'
+                                }}>
+                                EXPLOOOOOSION!!
                             </h2>
                         </div>
                     ) : gameState.isNearMiss ? (
                         <div className="mb-4">
-                            <h2 className="text-6xl font-bold text-gray-300 italic" style={{ fontFamily: '"Bangers", system-ui' }}>
+                            <h2 className="text-6xl font-bold text-gray-300 italic drop-shadow-md tracking-tight" 
+                                style={{ 
+                                    fontFamily: '"Russo One", sans-serif',
+                                    background: 'linear-gradient(to bottom, #e5e7eb 0%, #9ca3af 100%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    WebkitTextStroke: '1px #4b5563'
+                                }}>
                                 "CASI TE GANO..."
                             </h2>
                         </div>

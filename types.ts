@@ -48,7 +48,8 @@ export interface GameState {
   isNoScope: boolean;
   isPongPoint: boolean;
   isTsukuyomi: boolean; // 3 wins in a row
-  isMagicWin: boolean; // 5-3 score
+  isExplosion: boolean; // 5-3 score (Konosuba)
+  isSonicBoom: boolean; // 5-2 score
   isNearMiss: boolean; // 5-1 score
   isRemontada: boolean; // New: Won when opponent had >= 4 points (Re:Zero)
   ballSpeed: number;

@@ -37,10 +37,10 @@ const getAudioContext = () => {
     return audioCtx;
 };
 
-const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre' | 'noscope' | 'dramatic' | 'lightspeed' | 'pongpoint' | 'eleganto' | 'yameroo' | 'tsukuyomi' | 'magicwin' | 'casi' | 'remontada', extraData?: string) => {
+const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'masacre' | 'noscope' | 'dramatic' | 'lightspeed' | 'pongpoint' | 'eleganto' | 'yameroo' | 'tsukuyomi' | 'explosion' | 'casi' | 'remontada' | 'sonicboom', extraData?: string) => {
   const ctx = getAudioContext();
   
-  // Audio Context for SFX
+  // Audio Context for SFX (Beeps and Boops)
   if (ctx) {
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
@@ -90,143 +90,92 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         oscillator.start(now);
         oscillator.stop(now + 0.3);
         break;
-      case 'win':
-      case 'masacre':
-      case 'noscope':
-      case 'dramatic':
-      case 'lightspeed':
-      case 'pongpoint':
-      case 'eleganto':
-      case 'yameroo':
-      case 'tsukuyomi':
-      case 'magicwin':
-      case 'casi':
-      case 'remontada':
-        // Silence the synth fanfare, only voice will play below
+      default:
+        // Silence the synth fanfare for special events, only voice will play below
         break;
     }
   }
 
   // Text To Speech
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window && (type === 'win' || type === 'masacre' || type === 'noscope' || type === 'dramatic' || type === 'lightspeed' || type === 'pongpoint' || type === 'eleganto' || type === 'yameroo' || type === 'tsukuyomi' || type === 'magicwin' || type === 'casi' || type === 'remontada')) {
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-
-    const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-    const japanVoice = voices.find(v => v.lang.startsWith('ja')); 
-    const esVoice = voices.find(v => v.lang.startsWith('es'));
-
-    if (type === 'masacre') {
-        const text = "MASACRE!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 0.4; 
-        u1.rate = 0.9;
-        u1.volume = 1.0;
-        if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
-
-    } else if (type === 'tsukuyomi') {
-        const text = "Caiste en el Tsukuyomi Infinito";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 0.1; 
-        u1.rate = 0.8; 
-        u1.volume = 1.0;
-        if (esVoice) u1.voice = esVoice;
-        else if (japanVoice) u1.voice = japanVoice;
-        window.speechSynthesis.speak(u1);
-
-    } else if (type === 'remontada') {
-        const text = "Una victoria desde el principio, no, desde cero";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 1.1; // Soft/Feminine vibe if possible, or just dramatic
-        u1.rate = 0.85; // Deliberate pace
-        u1.volume = 1.0;
-        if (esVoice) u1.voice = esVoice;
-        window.speechSynthesis.speak(u1);
-
-    } else if (type === 'magicwin') {
-        const text = "Magic Win!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 1.5; 
-        u1.rate = 1.0;
-        u1.volume = 1.0;
-        if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
-
-    } else if (type === 'casi') {
-        const text = "Casi te gano!"; 
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 1.2; 
-        u1.rate = 1.1;
-        u1.volume = 1.0;
-        if (esVoice) u1.voice = esVoice;
-        window.speechSynthesis.speak(u1);
-
-    } else if (type === 'dramatic') {
-        const text = "DRAMATIC FINISH!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 0.2; 
-        u1.rate = 0.6; 
-        u1.volume = 1.0;
-        if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
-
-    } else if (type === 'noscope') {
-        const text = "NO SCOPE!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 1.5; 
-        u1.rate = 1.2;
-        u1.volume = 1.0;
-        if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    const isSpecial = ['win', 'masacre', 'noscope', 'dramatic', 'lightspeed', 'pongpoint', 'eleganto', 'yameroo', 'tsukuyomi', 'explosion', 'casi', 'remontada', 'sonicboom'].includes(type);
     
-    } else if (type === 'pongpoint') {
-        const text = "PONG POINT!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 0.1; 
-        u1.rate = 1.1;
-        u1.volume = 1.0;
-        if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
+    if (isSpecial) {
+        // Cancel any ongoing speech to prioritize game events
+        window.speechSynthesis.cancel();
 
-    } else if (type === 'lightspeed') {
-        const text = "Light speedo!!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 1.4; 
-        u1.rate = 1.4;
-        u1.volume = 1.0; 
-        if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
+        const voices = window.speechSynthesis.getVoices();
+        const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+        const japanVoice = voices.find(v => v.lang.startsWith('ja')); 
+        const esVoice = voices.find(v => v.lang.startsWith('es'));
 
-    } else if (type === 'eleganto') {
-        const text = "Elegan-to!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 0.8; 
+        let text = "";
+        let u1 = new SpeechSynthesisUtterance();
+        
+        // Default config
+        u1.voice = englishVoice;
         u1.rate = 0.9;
+        u1.pitch = 0.6;
         u1.volume = 1.0;
-        if (japanVoice) u1.voice = japanVoice; 
-        else if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
 
-    } else if (type === 'yameroo') {
-        const text = "Yameroo Freeza!";
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 1.2; 
-        u1.rate = 1.1;
-        u1.volume = 1.0;
-        if (japanVoice) u1.voice = japanVoice; 
-        else if (englishVoice) u1.voice = englishVoice;
-        window.speechSynthesis.speak(u1);
+        if (type === 'masacre') {
+            text = `MASACRE! ... ${extraData} Wins`;
+            u1.pitch = 0.4; 
+        } else if (type === 'tsukuyomi') {
+            text = `Caiste en el Tsukuyomi Infinito ... ${extraData} Wins`;
+            u1.pitch = 0.1; 
+            u1.rate = 0.8; 
+            if (esVoice) u1.voice = esVoice;
+            else if (japanVoice) u1.voice = japanVoice;
+        } else if (type === 'remontada') {
+            text = `Una victoria desde el principio, no, desde cero ... ${extraData} Wins`;
+            u1.pitch = 1.1; 
+            u1.rate = 0.85; 
+            if (esVoice) u1.voice = esVoice;
+        } else if (type === 'explosion') {
+            text = `EXPLOOOOOSION!! ... ${extraData} Wins`;
+            u1.pitch = 1.4; // High pitch like Megumin
+            u1.rate = 1.0;
+        } else if (type === 'sonicboom') {
+            text = `SONIC BOOM! ... ${extraData} Wins`;
+            u1.pitch = 1.2; 
+            u1.rate = 1.4; // Fast
+        } else if (type === 'casi') {
+            text = `Casi te gano! ... ${extraData} Wins`; 
+            u1.pitch = 1.2; 
+            u1.rate = 1.1;
+            if (esVoice) u1.voice = esVoice;
+        } else if (type === 'dramatic') {
+            text = `DRAMATIC FINISH! ... ${extraData} Wins`;
+            u1.pitch = 0.2; 
+            u1.rate = 0.6; 
+        } else if (type === 'noscope') {
+            text = "NO SCOPE!"; // Mid-game, don't say winner yet
+            u1.pitch = 1.5; 
+            u1.rate = 1.2;
+        } else if (type === 'pongpoint') {
+            text = "PONG POINT!";
+            u1.pitch = 0.1; 
+            u1.rate = 1.1;
+        } else if (type === 'lightspeed') {
+            text = "Light speedo!!";
+            u1.pitch = 1.4; 
+            u1.rate = 1.4;
+        } else if (type === 'eleganto') {
+            text = "Elegan-to!";
+            u1.pitch = 0.8; 
+            if (japanVoice) u1.voice = japanVoice; 
+        } else if (type === 'yameroo') {
+            text = "Yameroo Freeza!";
+            u1.pitch = 1.2; 
+            u1.rate = 1.1;
+            if (japanVoice) u1.voice = japanVoice; 
+        } else {
+            // NORMAL WIN
+            text = `${extraData} Wins`;
+        }
 
-    } else {
-        // NORMAL WIN LOGIC
-        const text = `${extraData} Wins`;
-        const u1 = new SpeechSynthesisUtterance(text);
-        u1.pitch = 0.6; 
-        u1.rate = 0.9;
-        u1.volume = 1.0;
-        if (englishVoice) u1.voice = englishVoice;
+        u1.text = text;
         window.speechSynthesis.speak(u1);
     }
   }
@@ -253,7 +202,8 @@ const createInitialState = (mode: GameMode = 'classic', p1Name: string = 'Player
   isNoScope: false,
   isPongPoint: false,
   isTsukuyomi: false,
-  isMagicWin: false,
+  isExplosion: false,
+  isSonicBoom: false,
   isNearMiss: false,
   isRemontada: false,
   ballSpeed: mode === 'hardcore' ? HARDCORE_INITIAL_BALL_SPEED : INITIAL_BALL_SPEED,
@@ -585,7 +535,8 @@ export const useGameLogic = () => {
       let isNoScope = false;
       let isPongPoint = false;
       let isTsukuyomi = false;
-      let isMagicWin = false;
+      let isExplosion = false;
+      let isSonicBoom = false;
       let isNearMiss = false;
       let isRemontada = false;
 
@@ -710,24 +661,24 @@ export const useGameLogic = () => {
           // 1. Masacre (5-0)
           if (loserScore === 0) isMasacre = true;
 
-          // 2. Magic Win (5-3)
-          if (winnerScore >= 5 && loserScore === 3) isMagicWin = true;
+          // 2. Explosion (Konosuba 5-3)
+          if (winnerScore >= 5 && loserScore === 3) isExplosion = true;
 
-          // 3. Near Miss (5-1)
+          // 3. Sonic Boom (5-2)
+          if (winnerScore >= 5 && loserScore === 2) isSonicBoom = true;
+
+          // 4. Near Miss (5-1)
           if (winnerScore >= 5 && loserScore === 1) isNearMiss = true;
           
-          // 4. Remontada / Comeback from Match Point (Loser had >= 4)
-          // Only count if it's not a Masacre or Magic Win or Near Miss to give it distinct flavor? 
-          // No, Remontada is a "state of the match". 
-          // Prioritize: Streak > Masacre > Remontada > Magic > Near > Dramatic
+          // 5. Remontada
           if (loserScore >= 4 && !isMasacre) isRemontada = true;
 
-          // 5. Dramatic Finish (Overtime)
+          // 6. Dramatic Finish (Overtime)
           if (winnerScore > BASE_WINNING_SCORE) {
               isDramaticFinish = true;
           }
 
-          // 6. Tsukuyomi (3 wins in a row)
+          // 7. Tsukuyomi (3 wins in a row)
           const history = matchHistory.current;
           const last1 = history[history.length - 1];
           const last2 = history[history.length - 2];
@@ -738,22 +689,23 @@ export const useGameLogic = () => {
               isTsukuyomi = true;
           }
 
-          // Push current match to history
           matchHistory.current.push({ winner: newWinner, loser: loserName });
 
           isGameActive = false;
 
           // Priority Audio Trigger
           if (isTsukuyomi) {
-              playGameSound('tsukuyomi');
+              playGameSound('tsukuyomi', newWinner);
           } else if (isMasacre) {
               playGameSound('masacre', newWinner);
+          } else if (isSonicBoom) {
+              playGameSound('sonicboom', newWinner);
+          } else if (isExplosion) {
+              playGameSound('explosion', newWinner);
           } else if (isRemontada) {
-              playGameSound('remontada');
-          } else if (isMagicWin) {
-              playGameSound('magicwin');
+              playGameSound('remontada', newWinner);
           } else if (isNearMiss) {
-              playGameSound('casi');
+              playGameSound('casi', newWinner);
           } else if (isDramaticFinish) {
               playGameSound('dramatic', newWinner);
           } else {
@@ -773,7 +725,8 @@ export const useGameLogic = () => {
           isNoScope, 
           isPongPoint, 
           isTsukuyomi,
-          isMagicWin,
+          isExplosion,
+          isSonicBoom,
           isNearMiss,
           isRemontada,
           isGameActive, 
