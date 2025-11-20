@@ -127,8 +127,7 @@ const LeaderboardService = {
         currentList[existingIndex].date = newEntry.date;
         currentList[existingIndex].mode = newEntry.mode;
         
-        // Keep masacre badge if they achieve it in any game (optional, or strictly latest)
-        // Let's set it if this game was a masacre
+        // Keep masacre badge if they achieve it in any game
         if (newEntry.isMasacre) {
             currentList[existingIndex].isMasacre = true;
         }
@@ -342,13 +341,8 @@ const App: React.FC = () => {
       
       if (playerEntries.length === 0) return null;
 
-      // Since we now accumulate score, finding the max score is simpler (it's just the user's entry score)
-      // But the filter might find duplicate if database hasn't been wiped yet, so max is safe
       const bestScore = Math.max(...playerEntries.map(e => e.score));
-      // Wins logic might be slightly off if we just count entries now, but in accumulating mode, 
-      // we don't store separate win counts in the JSON unless we add a 'wins' field.
-      // For now, 'wins' will just show 1 if they are in the leaderboard, which is acceptable given constraints.
-      const wins = playerEntries.length; 
+      const wins = playerEntries.length;
 
       return { wins, bestScore };
   };
@@ -366,11 +360,9 @@ const App: React.FC = () => {
   const rightSkinImg = getSkinImage(gameState.skins.player2);
 
   // Show character if they scored last point OR if they won the game
-  // Player 1 (Left)
   const showLeftChar = (gameState.lastScorerId === 'player1' && !gameState.winner) || 
                        (gameState.winner === gameState.playerNames.player1);
   
-  // Player 2 (Right)
   const showRightChar = (gameState.lastScorerId === 'player2' && !gameState.winner) || 
                         (gameState.winner === gameState.playerNames.player2);
 
@@ -611,10 +603,10 @@ const App: React.FC = () => {
                     
                     <div className="flex gap-4 justify-center">
                         <button
-                          onClick={() => handleStartGame('classic')}
-                          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold text-lg rounded-lg shadow-lg transition-transform transform hover:scale-105"
+                          onClick={() => handleStartGame(gameState.mode)}
+                          className={`px-6 py-3 font-bold text-lg rounded-lg shadow-lg transition-transform transform hover:scale-105 ${gameState.mode === 'hardcore' ? 'bg-red-600 hover:bg-red-700 text-white border-2 border-orange-500 shadow-[0_0_15px_red]' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
                         >
-                          Play Again
+                          Play Again ({gameState.mode === 'hardcore' ? 'Hardcore' : 'Classic'})
                         </button>
                     </div>
                   </>
