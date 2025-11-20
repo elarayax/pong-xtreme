@@ -95,7 +95,7 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
     }
   }
 
-  // 2. TTS (Voices) - ROBUST IMPLEMENTATION
+  // 2. TTS (Voices) - SIMPLIFIED & SAFE
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     const isSpecial = ['win', 'masacre', 'noscope', 'dramatic', 'lightspeed', 'pongpoint', 'eleganto', 'yameroo', 'tsukuyomi', 'explosion', 'casi', 'remontada', 'sonicboom'].includes(type);
     
@@ -108,17 +108,11 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         // Hard cancel previous to clear queue
         window.speechSynthesis.cancel();
 
-        const voices = window.speechSynthesis.getVoices();
-        
-        // Simplified Voice Selection - Fallback to Default if not found
-        // This prevents the code from crashing if a specific language isn't installed
-        const englishVoice = voices.find(v => v.lang.includes('en')) || null;
-        const japanVoice = voices.find(v => v.lang.includes('ja')) || null; 
-        const esVoice = voices.find(v => v.lang.includes('es')) || null;
-
         const u = new SpeechSynthesisUtterance();
         
-        // Default settings
+        // Safe Default Config
+        // We removed the complex voice search logic to prevent "undefined voice" errors.
+        // The browser will now use the default system voice which is the most reliable.
         u.volume = 1.0; 
         u.rate = 1.0;
         u.pitch = 1.0;
@@ -127,50 +121,44 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
 
         if (type === 'masacre') {
             text = `MASACRE! ... ${extraData} Wins`;
-            u.pitch = 0.5; 
+            u.pitch = 0.6; // Safe low pitch
             u.rate = 0.9;
         } else if (type === 'tsukuyomi') {
             text = `Caiste en el Tsukuyomi Infinito ... ${extraData} Wins`;
-            u.pitch = 0.1; 
+            u.pitch = 0.5; // Safe low pitch
             u.rate = 0.8; 
-            if (esVoice) u.voice = esVoice; // Prefer Spanish for this one if avail
         } else if (type === 'remontada') {
             text = `Una victoria desde el principio, no, desde cero ... ${extraData} Wins`;
-            if (esVoice) u.voice = esVoice;
         } else if (type === 'explosion') {
             text = `EXPLOOOOOSION!! ... ${extraData} Wins`;
-            u.pitch = 1.5;
+            u.pitch = 1.4; 
         } else if (type === 'sonicboom') {
             text = `SONIC BOOM! ... ${extraData} Wins`;
-            u.rate = 1.5;
+            u.rate = 1.4;
         } else if (type === 'casi') {
             text = `Casi te gano! ... ${extraData} Wins`; 
-            if (esVoice) u.voice = esVoice;
         } else if (type === 'dramatic') {
             text = `DRAMATIC FINISH! ... ${extraData} Wins`;
-            u.pitch = 0.2; 
+            u.pitch = 0.5; // Safe low
             u.rate = 0.6; 
         } else if (type === 'noscope') {
             text = "NO SCOPE!";
-            u.pitch = 1.5; 
+            u.pitch = 1.4; 
             u.rate = 1.2;
         } else if (type === 'pongpoint') {
             text = "PONG POINT!";
-            u.pitch = 0.1; 
+            u.pitch = 0.5; 
         } else if (type === 'lightspeed') {
             text = "Light speedo!!";
-            u.pitch = 1.4; 
+            u.pitch = 1.3; 
             u.rate = 1.3;
         } else if (type === 'eleganto') {
             text = "Elegan-to!";
-            if (japanVoice) u.voice = japanVoice; 
         } else if (type === 'yameroo') {
             text = "Yameroo Freeza!";
-            if (japanVoice) u.voice = japanVoice; 
         } else {
             // NORMAL WIN
             text = `${extraData} Wins`;
-            if (englishVoice) u.voice = englishVoice;
         }
 
         u.text = text;
@@ -180,7 +168,11 @@ const playGameSound = (type: 'paddle' | 'wall' | 'block' | 'score' | 'win' | 'ma
         u.onend = () => { activeUtterance = null; };
         u.onerror = (e) => { console.error("TTS Error:", e); };
 
-        window.speechSynthesis.speak(u);
+        try {
+            window.speechSynthesis.speak(u);
+        } catch (e) {
+            console.error("SpeechSynthesis failed:", e);
+        }
     }
   }
 };
@@ -233,9 +225,11 @@ interface MatchResult {
 }
 
 export const useGameLogic = () => {
+  // Fix: Explicitly pass default argument to createInitialState to satisfy potential strict argument checks
   const [gameState, setGameState] = useState<GameState>(createInitialState('classic'));
   const keysPressed = useRef<Record<string, boolean>>({});
-  const animationFrameId = useRef<number>();
+  // Fix: Explicitly initialize useRef with undefined to match signature expecting 1 argument if inferred
+  const animationFrameId = useRef<number | undefined>(undefined);
   const matchHistory = useRef<MatchResult[]>([]); 
   
   const gameStateRef = useRef(gameState);
@@ -250,12 +244,12 @@ export const useGameLogic = () => {
         ctx.resume().catch(() => {});
     }
     
-    // 2. SILENT UNLOCK FOR TTS (Crucial!)
-    // This forces the browser to recognize we want to play audio, unlocking the engine for the game loop later.
+    // 2. SILENT UNLOCK FOR TTS
+    // Use a non-empty string to ensure browser engine engages
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        const unlock = new SpeechSynthesisUtterance('');
-        unlock.volume = 0; 
+        const unlock = new SpeechSynthesisUtterance('ready');
+        unlock.volume = 0; // Muted, but engaging
         window.speechSynthesis.speak(unlock);
     }
 

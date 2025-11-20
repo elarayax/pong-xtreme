@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScoreBoard from './components/ScoreBoard';
 import GameBoard from './components/GameBoard';
@@ -116,23 +115,17 @@ const LeaderboardService = {
         currentList = this.getLocal();
     }
     
-    // Check if user already exists
     const existingIndex = currentList.findIndex(e => e.name.toUpperCase() === newEntry.name.toUpperCase());
 
     if (existingIndex !== -1) {
-        // User exists: ACCUMULATE SCORE
         currentList[existingIndex].score += newEntry.score;
-        
-        // Update metadata to latest game
         currentList[existingIndex].date = newEntry.date;
         currentList[existingIndex].mode = newEntry.mode;
         
-        // Keep masacre badge if they achieve it in any game
         if (newEntry.isMasacre) {
             currentList[existingIndex].isMasacre = true;
         }
     } else {
-        // New user
         currentList.push(newEntry);
     }
 
@@ -221,18 +214,21 @@ const App: React.FC = () => {
   const testAudio = () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
           window.speechSynthesis.cancel();
+          const voices = window.speechSynthesis.getVoices();
           const u = new SpeechSynthesisUtterance("System Check. Audio Online.");
           u.volume = 1.0;
           u.rate = 1.0;
           u.pitch = 1.0;
           window.speechSynthesis.speak(u);
           
-          // Also resume AudioContext
+          // Resume AudioContext
           const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
           const ctx = new AudioContext();
           if (ctx.state === 'suspended') {
               ctx.resume();
           }
+
+          alert(`Audio Test Sent!\nVoices Detected: ${voices.length}\n(If 0, check browser settings)`);
       } else {
           alert("Your browser does not support Speech Synthesis.");
       }
@@ -244,28 +240,25 @@ const App: React.FC = () => {
           if (hasPlayedIntroRef.current) return;
           
           if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-              window.speechSynthesis.cancel(); // Reset
+              window.speechSynthesis.cancel(); 
 
               const u = new SpeechSynthesisUtterance("Poooooong... Xtreeeeeme!");
-              u.pitch = 0.1; // Extremely Deep
-              u.rate = 0.6;  // Slow and dramatic
+              u.pitch = 0.6; // Safe pitch
+              u.rate = 0.8;  
               u.volume = 1.0;
               
-              const voices = window.speechSynthesis.getVoices();
-              // Try to find a deep sounding voice or just the default English
-              const selectedVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-              if (selectedVoice) u.voice = selectedVoice;
-              
-              // Assign to window to prevent GC issues
               (window as any).introUtterance = u;
               u.onend = () => { delete (window as any).introUtterance; };
 
-              window.speechSynthesis.speak(u);
-              hasPlayedIntroRef.current = true;
+              try {
+                 window.speechSynthesis.speak(u);
+                 hasPlayedIntroRef.current = true;
+              } catch (e) {
+                 console.error("Intro speech failed", e);
+              }
           }
       };
 
-      // 1. Try to play immediately (might be blocked by autoplay policy)
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
           playIntro();
@@ -273,12 +266,10 @@ const App: React.FC = () => {
           window.speechSynthesis.addEventListener('voiceschanged', playIntro, { once: true });
       }
 
-      // 2. Fallback: Play on first interaction if autoplay blocked
       const unlockAudio = () => {
           if (!hasPlayedIntroRef.current) {
               playIntro();
           }
-          // Also resume context for game sounds
           const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
           const ctx = new AudioContext();
           if (ctx.state === 'suspended') {
@@ -429,7 +420,6 @@ const App: React.FC = () => {
   const p1Stats = getPlayerStats(player1Name);
   const p2Stats = getPlayerStats(player2Name);
 
-  // --- LOGIC FOR SIDE CHARACTERS ---
   const getSkinImage = (skinKey: SkinType) => {
       const skin = AVAILABLE_SKINS[skinKey as keyof typeof AVAILABLE_SKINS];
       return skin ? skin.img : null;
@@ -438,7 +428,6 @@ const App: React.FC = () => {
   const leftSkinImg = getSkinImage(gameState.skins.player1);
   const rightSkinImg = getSkinImage(gameState.skins.player2);
 
-  // Show character if they scored last point OR if they won the game
   const showLeftChar = (gameState.lastScorerId === 'player1' && !gameState.winner) || 
                        (gameState.winner === gameState.playerNames.player1);
   
@@ -683,7 +672,7 @@ const App: React.FC = () => {
                                <div className="mt-2 text-xs text-red-300 bg-red-900/60 p-3 rounded border border-red-600 max-w-xs break-words shadow-lg select-text">
                                    <strong>Error:</strong> {saveError}
                                    <div className="mt-1 text-[10px] text-gray-400">Check Console & Env Vars</div>
-                               </div>
+                                </div>
                            )}
                        </div> 
                     )}
