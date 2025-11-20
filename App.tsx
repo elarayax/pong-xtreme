@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScoreBoard from './components/ScoreBoard';
 import GameBoard from './components/GameBoard';
@@ -7,16 +6,24 @@ import { LeaderboardEntry, GameMode } from './types';
 import { GAME_WIDTH, GAME_HEIGHT } from './constants';
 
 // --- CONFIGURATION FOR GLOBAL LEADERBOARD ---
-// SECURITY UPDATE: We now use Environment Variables.
-// 1. In Vercel (Settings -> Environment Variables), add:
-//    REACT_APP_JSONBIN_BIN_ID
-//    REACT_APP_JSONBIN_API_KEY
-// 2. Locally, create a .env file with these keys.
-// 
-// NOTE: If these are missing, the game gracefully falls back to LocalStorage.
+// SECURITY UPDATE: Robust Key Detection
+// We now check for both REACT_APP_ and VITE_ prefixes to support different build tools (CRA vs Vite).
 
-const JSONBIN_BIN_ID = process.env.REACT_APP_JSONBIN_BIN_ID || '';
-const JSONBIN_API_KEY = process.env.REACT_APP_JSONBIN_API_KEY || '';
+const getEnvVar = (key: string) => {
+    // 1. Try Standard Process Env (CRA / Node)
+    if (process.env[`REACT_APP_${key}`]) return process.env[`REACT_APP_${key}`];
+    // 2. Try Vite Env (if available)
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[`VITE_${key}`]) {
+        return (import.meta as any).env[`VITE_${key}`];
+    }
+    // 3. Try direct process (rare)
+    if (process.env[key]) return process.env[key];
+    
+    return '';
+};
+
+const JSONBIN_BIN_ID = getEnvVar('JSONBIN_BIN_ID') || '';
+const JSONBIN_API_KEY = getEnvVar('JSONBIN_API_KEY') || '';
 
 const LOCAL_STORAGE_KEY = 'pongXtremeLeaderboard';
 
@@ -42,7 +49,12 @@ const LeaderboardService = {
             'Content-Type': 'application/json'
           }
         });
-        if (!response.ok) throw new Error(`Cloud fetch failed: ${response.statusText}`);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Cloud Read Error (${response.status}): ${errorText.substring(0, 50)}`);
+        }
+
         const data = await response.json();
         
         let rawList: any[] = [];
@@ -79,8 +91,8 @@ const LeaderboardService = {
         return cleanData;
 
       } catch (error) {
-        console.warn("Cloud fetch error, falling back to local:", error);
-        return this.getLocal();
+        console.warn("Cloud fetch error:", error);
+        throw error; // Propagate error for UI diagnostics
       }
     }
     // Local Mode
@@ -91,10 +103,13 @@ const LeaderboardService = {
     // 1. Get latest data first
     let currentList: LeaderboardEntry[] = [];
     try {
+        // We use get() logic but catch error here to allow offline saving if cloud is down
         currentList = await this.get();
         if (!Array.isArray(currentList)) currentList = [];
     } catch (e) {
-        currentList = [];
+        console.log("Could not fetch latest for save, starting with empty or local");
+        // Try local as fallback for base
+        currentList = this.getLocal();
     }
     
     // 2. Process List
@@ -120,15 +135,15 @@ const LeaderboardService = {
           method: 'PUT',
           headers: {
             'X-Master-Key': JSONBIN_API_KEY.trim(),
-            'Content-Type': 'application/json',
-            'X-Bin-Versioning': 'false' // IMPORTANT: Prevent version history to update the bin in-place
+            'Content-Type': 'application/json'
+            // 'X-Bin-Versioning': 'false' // Removed as it causes issues on some free plans
           },
           body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
-            // Throw explicit error for UI to catch
-            throw new Error(`Status: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            throw new Error(`Cloud Save Error (${response.status}): ${errorText.substring(0, 50)}`);
         }
 
       } catch (error) {
@@ -171,6 +186,7 @@ const App: React.FC = () => {
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<{connected: boolean, type: 'cloud' | 'local', error?: string}>({ connected: true, type: 'local' });
   
   // Input State for Pre-game
   const [player1Name, setPlayer1Name] = useState('PLAYER 1');
@@ -207,19 +223,26 @@ const App: React.FC = () => {
 
   // Load leaderboard
   const loadLeaderboard = useCallback(async () => {
+    setIsLoadingLeaderboard(true);
+    
     if (LeaderboardService.isCloudConfigured()) {
-        setIsLoadingLeaderboard(true);
         try {
             const data = await LeaderboardService.get();
             setLeaderboard(Array.isArray(data) ? data : []);
-        } catch (e) {
-            setLeaderboard([]);
+            setConnectionStatus({ connected: true, type: 'cloud' });
+        } catch (e: any) {
+            // Fallback to local display but show error
+            const localData = LeaderboardService.getLocal();
+            setLeaderboard(localData);
+            setConnectionStatus({ connected: false, type: 'cloud', error: e.message });
         } finally {
             setIsLoadingLeaderboard(false);
         }
     } else {
-        const data = LeaderboardService.get();
+        const data = LeaderboardService.getLocal();
         setLeaderboard(Array.isArray(data) ? data : []);
+        setConnectionStatus({ connected: true, type: 'local' });
+        setIsLoadingLeaderboard(false);
     }
   }, []);
 
@@ -360,9 +383,32 @@ const App: React.FC = () => {
                     <h2 className="text-4xl font-bold text-yellow-400 mb-2 uppercase tracking-widest border-b-4 border-yellow-500 pb-2" style={{ fontFamily: '"Bangers", system-ui' }}>
                         HALL OF FAME
                     </h2>
-                    <p className="text-xs text-gray-500 mb-4 uppercase tracking-wide">
-                        {LeaderboardService.isCloudConfigured() ? 'Global Ranking' : 'Local Ranking'}
-                    </p>
+                    
+                    {/* CONNECTION DIAGNOSTICS */}
+                    <div className="w-full mb-4 p-2 rounded border text-xs flex items-center justify-between bg-gray-800 border-gray-700">
+                         <div className="flex items-center gap-2">
+                             <span>STATUS:</span>
+                             {connectionStatus.type === 'local' ? (
+                                 <span className="text-orange-400 font-bold flex items-center gap-1">🔴 LOCAL MODE</span>
+                             ) : connectionStatus.connected ? (
+                                 <span className="text-green-400 font-bold flex items-center gap-1">🟢 CLOUD CONNECTED</span>
+                             ) : (
+                                 <span className="text-red-400 font-bold flex items-center gap-1">❌ CONNECTION FAILED</span>
+                             )}
+                         </div>
+                         <div className="text-[10px] text-gray-500 flex gap-2">
+                             {connectionStatus.type === 'local' ? 
+                                <span>Env Vars Missing (Checked REACT_APP_ & VITE_)</span> : 
+                                <span>ID: {JSONBIN_BIN_ID.substring(0,4)}...</span>
+                             }
+                         </div>
+                    </div>
+                    {connectionStatus.error && (
+                        <div className="w-full mb-4 p-2 bg-red-900/50 border border-red-500 text-red-200 text-xs rounded break-all">
+                            <strong>Error:</strong> {connectionStatus.error}
+                        </div>
+                    )}
+
                     
                     {isLoadingLeaderboard ? (
                         <div className="flex items-center justify-center h-40">
@@ -430,7 +476,7 @@ const App: React.FC = () => {
                         <div className="bg-gray-800 p-6 rounded-lg border-2 border-blue-500 shadow-2xl mb-6 animate-fade-in-up relative">
                             <h3 className="text-xl text-blue-300 mb-2 uppercase font-bold">High Score: <span className="text-white">{finalScore}</span></h3>
                             {saveError && (
-                                <div className="mb-2 text-xs text-red-400 bg-red-900/20 p-1 rounded border border-red-800">
+                                <div className="mb-2 text-xs text-red-400 bg-red-900/20 p-1 rounded border border-red-800 break-all">
                                     ⚠️ Save Error: {saveError}. <br/> Saved locally.
                                 </div>
                             )}
@@ -451,7 +497,7 @@ const App: React.FC = () => {
                            {saveError && (
                                <div className="mt-2 text-xs text-red-300 bg-red-900/60 p-3 rounded border border-red-600 max-w-xs break-words shadow-lg select-text">
                                    <strong>Error:</strong> {saveError}
-                                   <div className="mt-1 text-[10px] text-gray-400">Check API Key/Bin ID</div>
+                                   <div className="mt-1 text-[10px] text-gray-400">Check Console & Env Vars</div>
                                </div>
                            )}
                        </div> 
@@ -506,28 +552,32 @@ const App: React.FC = () => {
                            </div>
                        </div>
                     </div>
-
-                    <h2 className="text-2xl font-bold mb-2">Select Mode</h2>
                     
-                     <div className="mt-4 flex gap-4 justify-center">
+                    <h3 className="text-gray-400 mb-4 text-sm tracking-widest">SELECT DIFFICULTY</h3>
+                    <div className="flex gap-6">
                         <button
                           onClick={() => handleStartGame('classic')}
-                          className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105"
+                          className="group relative px-8 py-4 bg-gray-800 border-2 border-blue-500 text-blue-400 font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:bg-blue-900 hover:scale-105 transition-all duration-200 overflow-hidden"
                         >
-                          Classic
+                          <span className="relative z-10 text-xl tracking-wider">CLASSIC</span>
+                          <div className="absolute inset-0 bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors"></div>
                         </button>
+
                         <button
                           onClick={() => handleStartGame('hardcore')}
-                          className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xl rounded-lg shadow-lg transition-transform transform hover:scale-105 border-2 border-yellow-500"
+                          className="group relative px-8 py-4 bg-gray-800 border-2 border-red-600 text-red-500 font-bold rounded-xl shadow-[0_0_15px_rgba(220,38,38,0.5)] hover:bg-red-900 hover:scale-105 transition-all duration-200 overflow-hidden"
                         >
-                          🔥 Hardcore
+                           <span className="relative z-10 text-xl tracking-wider flex items-center gap-2">
+                               🔥 HARDCORE 🔥
+                           </span>
+                           <div className="absolute inset-0 bg-red-600/10 group-hover:bg-red-600/20 transition-colors animate-pulse"></div>
                         </button>
-                     </div>
-                     <p className="text-xs text-gray-500 mt-4">Hardcore: Faster speed, constant chaos.</p>
-                     <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm mt-4 opacity-60">
-                      <p>P1: <span className="text-blue-400">W / S</span></p>
-                      <p>P2: <span className="text-red-400">↑ / ↓</span></p>
-                      <p className="col-span-2 text-center mt-1">Space to Pause</p>
+                    </div>
+                    
+                    <div className="mt-8 text-gray-500 text-xs flex flex-col gap-1">
+                        <p>W: UP | S: DOWN (Player 1)</p>
+                        <p>ARROWS (Player 2)</p>
+                        <p className="text-yellow-500/70 mt-2">SPACE/ENTER: START & PAUSE</p>
                     </div>
                   </>
                 )}
@@ -536,8 +586,8 @@ const App: React.FC = () => {
          </div>
       </div>
       
-      <footer className="shrink-0 py-1 text-gray-600 text-[10px] border-t border-gray-800 w-full text-center">
-        Built with React & Tailwind.
+      <footer className="shrink-0 w-full py-2 text-center text-[10px] text-gray-600 bg-gray-900/90 border-t border-gray-800 z-10">
+        PONG XTREME &copy; {new Date().getFullYear()}
       </footer>
     </div>
   );
